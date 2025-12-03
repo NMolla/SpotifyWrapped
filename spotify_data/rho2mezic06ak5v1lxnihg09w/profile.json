@@ -1,0 +1,39 @@
+{
+  "user_id": "rho2mezic06ak5v1lxnihg09w",
+  "data_type": "profile",
+  "time_range": null,
+  "timestamp": "2025-12-03T16:35:36.832364",
+  "data": {
+    "country": "ET",
+    "display_name": "Nahomster",
+    "email": "nyelebe1@gmail.com",
+    "explicit_content": {
+      "filter_enabled": false,
+      "filter_locked": false
+    },
+    "external_urls": {
+      "spotify": "https://open.spotify.com/user/rho2mezic06ak5v1lxnihg09w"
+    },
+    "followers": {
+      "href": null,
+      "total": 12
+    },
+    "href": "https://api.spotify.com/v1/users/rho2mezic06ak5v1lxnihg09w",
+    "id": "rho2mezic06ak5v1lxnihg09w",
+    "images": [
+      {
+        "height": 300,
+        "url": "https://i.scdn.co/image/ab6775700000ee850d14df2a69f0276c7f34af03",
+        "width": 300
+      },
+      {
+        "height": 64,
+        "url": "https://i.scdn.co/image/ab67757000003b820d14df2a69f0276c7f34af03",
+        "width": 64
+      }
+    ],
+    "product": "premium",
+    "type": "user",
+    "uri": "spotify:user:rho2mezic06ak5v1lxnihg09w"
+  }
+}
