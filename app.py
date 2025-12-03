@@ -7,17 +7,25 @@ from datetime import datetime
 from collections import Counter
 from flask import Flask, redirect, request, jsonify, session, send_file
 from flask_cors import CORS
+from flask_caching import Cache
 from dotenv import load_dotenv
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from PIL import Image, ImageDraw, ImageFont
 import requests
+import hashlib
 
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', secrets.token_hex(32))
 CORS(app, supports_credentials=True, origins=['http://localhost:3000', 'http://127.0.0.1:3000'])
+
+# Configure cache
+cache = Cache(app, config={
+    'CACHE_TYPE': 'simple',  # Use simple in-memory cache
+    'CACHE_DEFAULT_TIMEOUT': 900  # Default 15 minutes
+})
 
 # Spotify OAuth Configuration
 SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
@@ -45,6 +53,63 @@ def get_spotify_client():
         session['token_info'] = token_info
     
     return spotipy.Spotify(auth=token_info['access_token'])
+
+def get_user_id():
+    """Get current user ID for cache key generation."""
+    sp = get_spotify_client()
+    if sp:
+        try:
+            user = sp.current_user()
+            return user.get('id', 'unknown')
+        except:
+            pass
+    return 'unknown'
+
+def generate_cache_key(*args):
+    """Generate a unique cache key based on user and arguments."""
+    user_id = get_user_id()
+    # Create a hash of all arguments including user ID
+    key_parts = [str(user_id)] + [str(arg) for arg in args]
+    key_string = '_'.join(key_parts)
+    # Return a shorter hash to avoid extremely long cache keys
+    return hashlib.md5(key_string.encode()).hexdigest()
+
+def fetch_all_spotify_items(sp, fetch_func, **kwargs):
+    """Fetch all items from Spotify API with pagination.
+    
+    Args:
+        sp: Spotify client instance
+        fetch_func: Function to call (e.g., sp.current_user_top_tracks)
+        **kwargs: Arguments to pass to the function (e.g., time_range)
+    
+    Returns:
+        List of all items fetched
+    """
+    all_items = []
+    limit = 50  # Maximum allowed by Spotify API for most endpoints
+    offset = 0
+    
+    while True:
+        # Call the function with current offset and limit
+        results = fetch_func(limit=limit, offset=offset, **kwargs)
+        
+        # Add items to our collection
+        items = results.get('items', [])
+        all_items.extend(items)
+        
+        # Check if we've fetched all items
+        # If 'next' is None or we got fewer items than requested, we're done
+        if not results.get('next') or len(items) < limit:
+            break
+        
+        # Move to next page
+        offset += limit
+        
+        # Safety check to prevent infinite loops (Spotify typically limits to 1000 items)
+        if offset >= 1000:
+            break
+    
+    return all_items
 
 @app.route('/')
 def index():
@@ -79,8 +144,63 @@ def callback():
 @app.route('/logout')
 def logout():
     """Clear session and log out."""
+    # Clear cache for this user before logging out
+    try:
+        user_id = get_user_id()
+        if user_id != 'unknown':
+            # Clear user-specific cache entries
+            clear_user_cache()
+    except:
+        pass
+    
     session.clear()
     return jsonify({'message': 'Logged out successfully'})
+
+@app.route('/api/clear-cache', methods=['POST'])
+def clear_cache_endpoint():
+    """Clear cache for the current user."""
+    sp = get_spotify_client()
+    if not sp:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        clear_user_cache()
+        return jsonify({'message': 'Cache cleared successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def clear_user_cache():
+    """Clear all cache entries for the current user."""
+    # Clear all cache entries (simple implementation)
+    # In production, you might want to track user-specific keys
+    cache.clear()
+
+@app.route('/api/cache-status')
+def cache_status():
+    """Get cache status information."""
+    sp = get_spotify_client()
+    if not sp:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        # Get user ID for reference
+        user_id = get_user_id()
+        
+        # Return cache configuration info
+        return jsonify({
+            'cache_type': 'simple',
+            'default_timeout': 900,
+            'user_id': user_id,
+            'cache_timeouts': {
+                'user_profile': '5 minutes',
+                'top_items': '15 minutes',
+                'wrapped_stats': '30 minutes',
+                'spotify_wrapped': '1 hour'
+            },
+            'message': 'Cache is active and working'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/user')
 def get_user():
@@ -89,14 +209,27 @@ def get_user():
     if not sp:
         return jsonify({'error': 'Not authenticated'}), 401
     
+    # Generate cache key for user profile
+    cache_key = generate_cache_key('user_profile')
+    
+    # Try to get from cache
+    cached_data = cache.get(cache_key)
+    if cached_data:
+        return jsonify(cached_data)
+    
     try:
         user = sp.current_user()
-        return jsonify({
+        user_data = {
             'name': user.get('display_name', 'Spotify User'),
             'email': user.get('email'),
             'image': user.get('images', [{}])[0].get('url') if user.get('images') else None,
             'id': user.get('id')
-        })
+        }
+        
+        # Cache for 5 minutes
+        cache.set(cache_key, user_data, timeout=300)
+        
+        return jsonify(user_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -113,14 +246,23 @@ def get_top_items(item_type, time_range):
     if time_range not in ['short_term', 'medium_term', 'long_term']:
         return jsonify({'error': 'Invalid time range'}), 400
     
+    # Generate cache key
+    cache_key = generate_cache_key('top_items', item_type, time_range)
+    
+    # Try to get from cache
+    cached_data = cache.get(cache_key)
+    if cached_data:
+        return jsonify(cached_data)
+    
     try:
+        # Fetch all items with pagination
         if item_type == 'tracks':
-            results = sp.current_user_top_tracks(limit=50, time_range=time_range)
+            all_items = fetch_all_spotify_items(sp, sp.current_user_top_tracks, time_range=time_range)
         else:
-            results = sp.current_user_top_artists(limit=50, time_range=time_range)
+            all_items = fetch_all_spotify_items(sp, sp.current_user_top_artists, time_range=time_range)
         
         items = []
-        for item in results['items']:
+        for item in all_items:
             if item_type == 'tracks':
                 items.append({
                     'id': item['id'],
@@ -143,6 +285,10 @@ def get_top_items(item_type, time_range):
                     'followers': item['followers']['total']
                 })
         
+        # Cache the data for 15 minutes
+        cache.set(cache_key, items, timeout=900)
+        
+        # Return all items (frontend can limit display as needed)
         return jsonify(items)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -157,46 +303,57 @@ def get_wrapped_stats(time_range):
     if time_range not in ['short_term', 'medium_term', 'long_term']:
         return jsonify({'error': 'Invalid time range'}), 400
     
+    # Generate cache key
+    cache_key = generate_cache_key('wrapped_stats', time_range)
+    
+    # Try to get from cache
+    cached_data = cache.get(cache_key)
+    if cached_data:
+        return jsonify(cached_data)
+    
     try:
-        # Get top tracks and artists
-        top_tracks = sp.current_user_top_tracks(limit=50, time_range=time_range)
-        top_artists = sp.current_user_top_artists(limit=50, time_range=time_range)
+        # Get all top tracks and artists with pagination
+        all_top_tracks = fetch_all_spotify_items(sp, sp.current_user_top_tracks, time_range=time_range)
+        all_top_artists = fetch_all_spotify_items(sp, sp.current_user_top_artists, time_range=time_range)
         
         # Process genres from artists
         all_genres = []
-        for artist in top_artists['items']:
+        for artist in all_top_artists:
             all_genres.extend(artist['genres'])
         
         genre_counts = Counter(all_genres)
         top_genres = genre_counts.most_common(10)
         
         # Calculate listening statistics
-        total_duration = sum(track['duration_ms'] for track in top_tracks['items'])
-        avg_popularity = sum(track['popularity'] for track in top_tracks['items']) / len(top_tracks['items']) if top_tracks['items'] else 0
+        total_duration = sum(track['duration_ms'] for track in all_top_tracks)
+        avg_popularity = sum(track['popularity'] for track in all_top_tracks) / len(all_top_tracks) if all_top_tracks else 0
         
         # Determine music characteristics
-        characteristics = analyze_music_taste(top_tracks['items'], top_artists['items'], genre_counts)
+        characteristics = analyze_music_taste(all_top_tracks, all_top_artists, genre_counts)
         
         stats = {
             'top_artist': {
-                'name': top_artists['items'][0]['name'] if top_artists['items'] else 'Unknown',
-                'image': top_artists['items'][0]['images'][0]['url'] if top_artists['items'] and top_artists['items'][0]['images'] else None,
-                'genres': top_artists['items'][0]['genres'][:3] if top_artists['items'] else []
+                'name': all_top_artists[0]['name'] if all_top_artists else 'Unknown',
+                'image': all_top_artists[0]['images'][0]['url'] if all_top_artists and all_top_artists[0]['images'] else None,
+                'genres': all_top_artists[0]['genres'][:3] if all_top_artists else []
             },
             'top_track': {
-                'name': top_tracks['items'][0]['name'] if top_tracks['items'] else 'Unknown',
-                'artist': top_tracks['items'][0]['artists'][0]['name'] if top_tracks['items'] and top_tracks['items'][0]['artists'] else 'Unknown',
-                'image': top_tracks['items'][0]['album']['images'][0]['url'] if top_tracks['items'] and top_tracks['items'][0]['album']['images'] else None
+                'name': all_top_tracks[0]['name'] if all_top_tracks else 'Unknown',
+                'artist': all_top_tracks[0]['artists'][0]['name'] if all_top_tracks and all_top_tracks[0]['artists'] else 'Unknown',
+                'image': all_top_tracks[0]['album']['images'][0]['url'] if all_top_tracks and all_top_tracks[0]['album']['images'] else None
             },
             'top_genre': top_genres[0][0] if top_genres else 'Unknown',
             'top_genres': [{'genre': genre, 'count': count} for genre, count in top_genres],
             'total_minutes': total_duration // 60000,
             'avg_popularity': round(avg_popularity, 1),
-            'total_artists': len(top_artists['items']),
-            'total_tracks': len(top_tracks['items']),
+            'total_artists': len(all_top_artists),
+            'total_tracks': len(all_top_tracks),
             'characteristics': characteristics,
             'time_period': get_time_period_label(time_range)
         }
+        
+        # Cache for 30 minutes (computationally expensive)
+        cache.set(cache_key, stats, timeout=1800)
         
         return jsonify(stats)
     except Exception as e:
@@ -251,6 +408,14 @@ def spotify_wrapped(year):
     if not sp:
         return jsonify({'error': 'Not authenticated'}), 401
     
+    # Generate cache key
+    cache_key = generate_cache_key('spotify_wrapped', year)
+    
+    # Try to get from cache
+    cached_data = cache.get(cache_key)
+    if cached_data:
+        return jsonify(cached_data)
+    
     try:
         current_year = datetime.now().year
         current_month = datetime.now().month
@@ -259,23 +424,23 @@ def spotify_wrapped(year):
         # Use long_term for previous years
         time_range = 'medium_term' if year == current_year else 'long_term'
         
-        # Get top 5 tracks and artists (like official Wrapped)
-        top_tracks_full = sp.current_user_top_tracks(limit=50, time_range=time_range)
-        top_artists_full = sp.current_user_top_artists(limit=50, time_range=time_range)
+        # Get all tracks and artists with pagination
+        all_tracks = fetch_all_spotify_items(sp, sp.current_user_top_tracks, time_range=time_range)
+        all_artists = fetch_all_spotify_items(sp, sp.current_user_top_artists, time_range=time_range)
         
-        # Get just top 5 for display
-        top_5_tracks = top_tracks_full['items'][:5]
-        top_5_artists = top_artists_full['items'][:5]
+        # Get just top 5 for display (like official Wrapped)
+        top_5_tracks = all_tracks[:5]
+        top_5_artists = all_artists[:5]
         
-        # Calculate total listening time (estimated from all 50 tracks)
-        total_ms = sum(track['duration_ms'] for track in top_tracks_full['items'])
+        # Calculate total listening time (estimated from all tracks)
+        total_ms = sum(track['duration_ms'] for track in all_tracks)
         total_minutes = total_ms // 60000
         total_hours = total_minutes // 60
         
         # Get all genres from all artists for better analysis
         all_genres = []
         genre_artists_map = {}
-        for artist in top_artists_full['items']:
+        for artist in all_artists:
             for genre in artist['genres']:
                 all_genres.append(genre)
                 if genre not in genre_artists_map:
@@ -302,15 +467,15 @@ def spotify_wrapped(year):
         
         # Determine listening personality
         listening_personality = determine_listening_personality(
-            top_tracks_full['items'],
-            top_artists_full['items'],
+            all_tracks,
+            all_artists,
             genre_counts
         )
         
         # Calculate music discovery stats
-        unique_artists = len(top_artists_full['items'])
+        unique_artists = len(all_artists)
         unique_genres = len(set(all_genres))
-        avg_track_popularity = sum(t['popularity'] for t in top_tracks_full['items']) / len(top_tracks_full['items'])
+        avg_track_popularity = sum(t['popularity'] for t in all_tracks) / len(all_tracks) if all_tracks else 0
         
         # Format top 5 tracks with play count estimates
         formatted_tracks = []
@@ -365,6 +530,9 @@ def spotify_wrapped(year):
             'top_artist': formatted_artists[0] if formatted_artists else None,
             'generated_at': datetime.now().isoformat()
         }
+        
+        # Cache for 1 hour (wrapped data is expensive to compute)
+        cache.set(cache_key, wrapped_data, timeout=3600)
         
         return jsonify(wrapped_data)
     except Exception as e:
@@ -528,11 +696,26 @@ def generate_wrapped_card():
         
         # Get stats
         time_range = request.args.get('time_range', 'medium_term')
-        top_tracks = sp.current_user_top_tracks(limit=5, time_range=time_range)
-        top_artists = sp.current_user_top_artists(limit=5, time_range=time_range)
         
-        # Create wrapped card image
-        img = create_wrapped_image(user_name, top_tracks['items'], top_artists['items'], time_range)
+        # Generate cache keys for tracks and artists
+        tracks_cache_key = generate_cache_key('wrapped_card_tracks', time_range)
+        artists_cache_key = generate_cache_key('wrapped_card_artists', time_range)
+        
+        # Try to get from cache
+        all_tracks = cache.get(tracks_cache_key)
+        all_artists = cache.get(artists_cache_key)
+        
+        # If not in cache, fetch from Spotify
+        if all_tracks is None:
+            all_tracks = fetch_all_spotify_items(sp, sp.current_user_top_tracks, time_range=time_range)
+            cache.set(tracks_cache_key, all_tracks, timeout=900)  # Cache for 15 minutes
+        
+        if all_artists is None:
+            all_artists = fetch_all_spotify_items(sp, sp.current_user_top_artists, time_range=time_range)
+            cache.set(artists_cache_key, all_artists, timeout=900)  # Cache for 15 minutes
+        
+        # Create wrapped card image with top 5 items
+        img = create_wrapped_image(user_name, all_tracks[:5], all_artists[:5], time_range)
         
         # Convert to bytes
         img_io = BytesIO()
