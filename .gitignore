@@ -52,6 +52,7 @@ htmlcov/
 build/
 dist/
 *.log
+spotify_data/
 
 # IDE
 .idea/
