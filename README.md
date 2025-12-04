@@ -43,35 +43,26 @@ spotify-wrapped/
    cd spotify-wrapped
    ```
 
-2. **Set up environment variables**
+2. **Run setup and configure**
    ```bash
+   ./dev.sh setup    # Install all dependencies
    cp .env.example .env
    # Edit .env with your Spotify API credentials
    ```
 
 3. **Run the application**
 
-   **Option 1: Run in separate Terminal tabs (Recommended)**
    ```bash
-   ./run_dev.sh                      # Primary dev command
-   ./scripts/dev/run_dev_iterm.sh    # For iTerm2 users
-   ```
-
-   **Option 2: Run servers manually**
-   
-   Backend:
-   ```bash
-   ./scripts/dev/run_backend.sh
+   ./dev.sh start    # Start both servers
+   ./dev.sh stop     # Stop all servers
+   ./dev.sh status   # Check server status
+   ./dev.sh help     # See all commands
    ```
    
-   Frontend (in new terminal):
+   **Individual server control:**
    ```bash
-   ./scripts/dev/run_frontend.sh
-   ```
-   
-   **Stop all servers:**
-   ```bash
-   ./scripts/dev/kill_servers.sh
+   ./dev.sh backend   # Start backend only
+   ./dev.sh frontend  # Start frontend only
    ```
 
 4. **Access the application**
@@ -91,17 +82,23 @@ spotify-wrapped/
 
 ## 🛠️ Development
 
-### Backend Development
+### All-in-one Development Tool
 ```bash
-cd backend
-source ../.venv/bin/activate
-python app.py
+./dev.sh help     # Show all available commands
+./dev.sh start    # Start development servers
+./dev.sh stop     # Stop all servers
+./dev.sh status   # Check what's running
+./dev.sh clean    # Clean temporary files
+./dev.sh setup    # Run initial setup
 ```
 
-### Frontend Development
+### Manual Development
 ```bash
-cd frontend
-npm start
+# Backend only
+./dev.sh backend
+
+# Frontend only
+./dev.sh frontend
 ```
 
 ### Running Tests
