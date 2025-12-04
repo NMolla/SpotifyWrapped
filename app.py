@@ -1313,44 +1313,6 @@ def get_wrapped_stats(time_range):
         total_duration = sum(track.get('duration_ms', 0) for track in all_top_tracks)
         avg_popularity = sum(track.get('popularity', 0) for track in all_top_tracks) / len(all_top_tracks) if all_top_tracks else 0
         
-        # Calculate listening age based on release dates
-        from datetime import datetime
-        current_year = datetime.now().year
-        release_years = []
-        for track in all_top_tracks:
-            release_date = track.get('album', {}).get('release_date', '')
-            if release_date:
-                try:
-                    # Handle different date formats (YYYY, YYYY-MM, YYYY-MM-DD)
-                    year = int(release_date.split('-')[0])
-                    release_years.append(year)
-                except:
-                    pass
-        
-        listening_age_stats = {}
-        if release_years:
-            avg_release_year = sum(release_years) / len(release_years)
-            avg_song_age = current_year - avg_release_year
-            
-            # Determine decade distribution
-            decade_counts = {}
-            for year in release_years:
-                decade = (year // 10) * 10
-                decade_key = f"{decade}s"
-                decade_counts[decade_key] = decade_counts.get(decade_key, 0) + 1
-            
-            # Get most common decade
-            most_common_decade = max(decade_counts, key=decade_counts.get) if decade_counts else None
-            
-            listening_age_stats = {
-                'average_year': round(avg_release_year),
-                'average_age': round(avg_song_age),
-                'newest_year': max(release_years),
-                'oldest_year': min(release_years),
-                'decade_distribution': decade_counts,
-                'favorite_decade': most_common_decade
-            }
-        
         # Determine music characteristics
         characteristics = analyze_music_taste(all_top_tracks, all_top_artists, genre_counts)
         
@@ -1372,7 +1334,6 @@ def get_wrapped_stats(time_range):
             'total_artists': len(all_top_artists),
             'total_tracks': len(all_top_tracks),
             'characteristics': characteristics,
-            'listening_age': listening_age_stats,
             'time_period': get_time_period_label(time_range)
         }
         
@@ -1537,42 +1498,6 @@ def spotify_wrapped(year):
                 'followers': artist['followers']['total']
             })
         
-        # Calculate listening age based on all tracks
-        from datetime import datetime
-        current_year = datetime.now().year
-        release_years = []
-        for track in all_tracks:
-            release_date = track.get('album', {}).get('release_date', '')
-            if release_date:
-                try:
-                    year = int(release_date.split('-')[0])
-                    release_years.append(year)
-                except:
-                    pass
-        
-        listening_age_stats = {}
-        if release_years:
-            avg_release_year = sum(release_years) / len(release_years)
-            avg_song_age = current_year - avg_release_year
-            
-            # Determine decade distribution
-            decade_counts = {}
-            for year in release_years:
-                decade = (year // 10) * 10
-                decade_key = f"{decade}s"
-                decade_counts[decade_key] = decade_counts.get(decade_key, 0) + 1
-            
-            most_common_decade = max(decade_counts, key=decade_counts.get) if decade_counts else None
-            
-            listening_age_stats = {
-                'average_year': round(avg_release_year),
-                'average_age': round(avg_song_age),
-                'newest_year': max(release_years),
-                'oldest_year': min(release_years),
-                'decade_distribution': decade_counts,
-                'favorite_decade': most_common_decade
-            }
-        
         # Check if user is in top percentage of any artist's listeners
         top_artist_status = None
         if top_10_artists:
@@ -1597,7 +1522,6 @@ def spotify_wrapped(year):
                 'unique_genres': unique_genres,
                 'avg_popularity': round(avg_track_popularity, 1)
             },
-            'listening_age': listening_age_stats,
             'top_artist_status': top_artist_status,
             'top_song': formatted_tracks[0] if formatted_tracks else None,
             'top_artist': formatted_artists[0] if formatted_artists else None,

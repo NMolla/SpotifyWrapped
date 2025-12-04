@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Music, User, Hash, Clock, Award, TrendingUp, Headphones, Star, Calendar } from 'lucide-react';
+import { Music, User, Hash, Clock, Award, TrendingUp, Headphones, Star } from 'lucide-react';
 
 const StatsOverview = ({ stats, timeRange }) => {
   const statCards = [
@@ -45,13 +45,6 @@ const StatsOverview = ({ stats, timeRange }) => {
       value: stats.total_artists || '0',
       subvalue: 'unique artists',
       color: 'from-pink-500 to-rose-500'
-    },
-    {
-      icon: <Calendar className="w-6 h-6" />,
-      label: 'My Listening Age',
-      value: stats.listening_age?.favorite_decade || 'N/A',
-      subvalue: stats.listening_age?.average_age ? `Avg: ${stats.listening_age.average_age} years old` : '',
-      color: 'from-amber-500 to-yellow-500'
     }
   ];
 

@@ -5,6 +5,7 @@ import './WrappedHub.css';
 const WrappedHub = () => {
   const [loading, setLoading] = useState(false);
   const [wrappedData, setWrappedData] = useState(null);
+  const [wrappedStats, setWrappedStats] = useState(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedTimeRange, setSelectedTimeRange] = useState('long_term');
   const [activeTab, setActiveTab] = useState('overview');
@@ -15,7 +16,18 @@ const WrappedHub = () => {
 
   useEffect(() => {
     fetchWrappedData();
+    fetchWrappedStats(); // Fetch stats on initial load too
+  }, []);
+
+  useEffect(() => {
+    fetchWrappedData();
   }, [selectedYear]);
+
+  useEffect(() => {
+    fetchWrappedStats();
+    // Also clear audio features when time range changes so they'll be refetched
+    setAudioFeatures(null);
+  }, [selectedTimeRange]);
 
   const fetchWrappedData = async () => {
     setLoading(true);
@@ -24,6 +36,30 @@ const WrappedHub = () => {
       setWrappedData(response.data);
     } catch (error) {
       console.error('Error fetching wrapped data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchWrappedStats = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`http://127.0.0.1:5000/api/wrapped-stats/${selectedTimeRange}`);
+      
+      // Also fetch top tracks and artists for the overview
+      const tracksResponse = await axios.get(`http://127.0.0.1:5000/api/top/tracks/${selectedTimeRange}`);
+      const artistsResponse = await axios.get(`http://127.0.0.1:5000/api/top/artists/${selectedTimeRange}`);
+      
+      // The API returns arrays directly, not objects with items property
+      const combinedData = {
+        ...response.data,
+        top_tracks: Array.isArray(tracksResponse.data) ? tracksResponse.data.slice(0, 10) : [],
+        top_artists: Array.isArray(artistsResponse.data) ? artistsResponse.data.slice(0, 10) : []
+      };
+      
+      setWrappedStats(combinedData);
+    } catch (error) {
+      console.error('Error fetching wrapped stats:', error);
     } finally {
       setLoading(false);
     }
@@ -112,34 +148,38 @@ const WrappedHub = () => {
     }
   };
 
+  const getTimeRangeLabel = (range) => {
+    switch(range) {
+      case 'short_term': return 'Last 4 Weeks';
+      case 'medium_term': return 'Last 6 Months';
+      case 'long_term': return 'All Time';
+      default: return range;
+    }
+  };
+
   const renderOverviewTab = () => (
     <div className="overview-tab">
-      {wrappedData && (
+      {wrappedStats && (
         <>
+          <div className="time-range-indicator">
+            <p>Showing data for: <strong>{getTimeRangeLabel(selectedTimeRange)}</strong></p>
+          </div>
           <div className="stats-grid">
             <div className="stat-card">
-              <h3>{wrappedData.total_minutes_listened?.toLocaleString()}</h3>
+              <h3>{wrappedStats.total_minutes?.toLocaleString() || '0'}</h3>
               <p>Minutes Listened</p>
             </div>
             <div className="stat-card">
-              <h3>{wrappedData.top_genres?.[0]?.genre || 'N/A'}</h3>
+              <h3>{wrappedStats.top_genre || 'N/A'}</h3>
               <p>Top Genre</p>
             </div>
             <div className="stat-card">
-              <h3>{wrappedData.music_discovery?.unique_artists || 0}</h3>
+              <h3>{wrappedStats.total_artists || 0}</h3>
               <p>Different Artists</p>
             </div>
             <div className="stat-card">
-              <h3>{wrappedData.music_discovery?.unique_genres || 0}</h3>
+              <h3>{wrappedStats.top_genres?.length || 0}</h3>
               <p>Genres Explored</p>
-            </div>
-            <div className="stat-card">
-              <h3>{wrappedData.listening_age?.favorite_decade || 'N/A'}</h3>
-              <p>Favorite Decade</p>
-            </div>
-            <div className="stat-card">
-              <h3>{wrappedData.listening_age?.average_age ? `${wrappedData.listening_age.average_age} years` : 'N/A'}</h3>
-              <p>Avg Song Age</p>
             </div>
           </div>
 
@@ -147,31 +187,39 @@ const WrappedHub = () => {
             <div className="top-section">
               <h2>Top 10 Tracks</h2>
               <div className="items-grid">
-                {wrappedData.top_tracks?.map((track, index) => (
-                  <div key={index} className="item-compact">
-                    <span className="rank">{track.position}</span>
-                    {track.image && <img src={track.image} alt={track.name} />}
-                    <div className="item-info">
-                      <p className="name">{track.name}</p>
-                      <p className="artist">{track.artist}</p>
+                {wrappedStats.top_tracks && wrappedStats.top_tracks.length > 0 ? (
+                  wrappedStats.top_tracks.map((track, index) => (
+                    <div key={track.id || index} className="item-compact">
+                      <span className="rank">{index + 1}</span>
+                      {track.image && <img src={track.image} alt={track.name} />}
+                      <div className="item-info">
+                        <p className="name">{track.name}</p>
+                        <p className="artist">{track.artist || 'Unknown'}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="no-data">No tracks data available</p>
+                )}
               </div>
             </div>
 
             <div className="top-section">
               <h2>Top 10 Artists</h2>
               <div className="items-grid">
-                {wrappedData.top_artists?.map((artist, index) => (
-                  <div key={index} className="item-compact">
-                    <span className="rank">{artist.position}</span>
-                    {artist.image && <img src={artist.image} alt={artist.name} className="artist-img" />}
-                    <div className="item-info">
-                      <p className="name">{artist.name}</p>
+                {wrappedStats.top_artists && wrappedStats.top_artists.length > 0 ? (
+                  wrappedStats.top_artists.map((artist, index) => (
+                    <div key={artist.id || index} className="item-compact">
+                      <span className="rank">{index + 1}</span>
+                      {artist.image && <img src={artist.image} alt={artist.name} className="artist-img" />}
+                      <div className="item-info">
+                        <p className="name">{artist.name}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="no-data">No artists data available</p>
+                )}
               </div>
             </div>
           </div>

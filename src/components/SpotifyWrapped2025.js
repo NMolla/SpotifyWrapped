@@ -440,67 +440,6 @@ const SpotifyWrapped2025 = () => {
         </motion.div>
       )
     },
-    // Slide 11: Listening Age
-    {
-      id: 'listening-age',
-      content: (
-        <motion.div className="h-full flex flex-col justify-center items-center p-8">
-          <motion.h2 className="text-4xl font-bold text-white mb-12 text-center">
-            Your Listening Age
-          </motion.h2>
-          {wrappedData.listening_age && (
-            <div className="text-center max-w-3xl">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="mb-8"
-              >
-                <div className="text-8xl font-black text-spotify-green mb-4">
-                  {wrappedData.listening_age.favorite_decade}
-                </div>
-                <p className="text-2xl text-spotify-lightgray mb-8">
-                  Your favorite music decade
-                </p>
-              </motion.div>
-              
-              <div className="grid grid-cols-2 gap-6 mb-8">
-                <motion.div
-                  initial={{ opacity: 0, x: -50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="bg-spotify-darkgray/50 p-6 rounded-lg"
-                >
-                  <p className="text-spotify-lightgray mb-2">Average Song Age</p>
-                  <p className="text-3xl font-bold text-white">
-                    {wrappedData.listening_age.average_age} years
-                  </p>
-                </motion.div>
-                <motion.div
-                  initial={{ opacity: 0, x: 50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="bg-spotify-darkgray/50 p-6 rounded-lg"
-                >
-                  <p className="text-spotify-lightgray mb-2">Music Range</p>
-                  <p className="text-3xl font-bold text-white">
-                    {wrappedData.listening_age.oldest_year} - {wrappedData.listening_age.newest_year}
-                  </p>
-                </motion.div>
-              </div>
-              
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="text-xl text-spotify-lightgray"
-              >
-                Your music taste spans {wrappedData.listening_age.newest_year - wrappedData.listening_age.oldest_year} years
-              </motion.p>
-            </div>
-          )}
-        </motion.div>
-      )
-    },
     // Final Slide: Thank You
     {
       id: 'thanks',
