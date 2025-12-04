@@ -30,7 +30,7 @@ check_servers() {
     # Check if backend is running on port 5000
     if lsof -Pi :5000 -sTCP:LISTEN -t >/dev/null ; then
         echo "⚠️  Backend already running on port 5000"
-        echo "   Kill it with: kill -9 \$(lsof -ti:5000)"
+        echo "   Kill it with: ./scripts/dev/kill_servers.sh"
         backend_running=true
     else
         backend_running=false
@@ -39,7 +39,7 @@ check_servers() {
     # Check if frontend is running on port 3000
     if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null ; then
         echo "⚠️  Frontend already running on port 3000"
-        echo "   Kill it with: kill -9 \$(lsof -ti:3000)"
+        echo "   Kill it with: ./scripts/dev/kill_servers.sh"
         frontend_running=true
     else
         frontend_running=false
@@ -52,7 +52,7 @@ check_servers
 # Start backend in new tab if not running
 if [ "$backend_running" = false ]; then
     echo "📡 Opening Backend Server in new tab..."
-    open_terminal_tab "Backend Server (Port 5000)" "./run_backend.sh"
+    open_terminal_tab "Backend Server (Port 5000)" "./scripts/dev/run_backend.sh"
 else
     echo "⏭️  Skipping backend (already running)"
 fi
@@ -63,7 +63,7 @@ sleep 2
 # Start frontend in new tab if not running
 if [ "$frontend_running" = false ]; then
     echo "🎨 Opening Frontend Server in new tab..."
-    open_terminal_tab "Frontend Server (Port 3000)" "./run_frontend.sh"
+    open_terminal_tab "Frontend Server (Port 3000)" "./scripts/dev/run_frontend.sh"
 else
     echo "⏭️  Skipping frontend (already running)"
 fi

@@ -18,9 +18,14 @@ spotify-wrapped/
 │   └── public/         # Static assets
 ├── tests/              # Test suites
 ├── docs/               # Documentation
-├── scripts/            # Utility scripts
+├── scripts/            # Organized utility scripts
+│   ├── dev/           # Development & server scripts
+│   ├── setup/         # Setup variations
+│   └── utils/         # Maintenance utilities
 ├── data/               # User data storage
-└── config/             # Configuration files
+├── config/             # Configuration files
+├── setup.sh           # Main setup script
+└── run_dev.sh         # Primary dev command
 ```
 
 ## 🚀 Quick Start
@@ -48,25 +53,25 @@ spotify-wrapped/
 
    **Option 1: Run in separate Terminal tabs (Recommended)**
    ```bash
-   ./run_dev.sh         # For Terminal.app
-   ./run_dev_iterm.sh   # For iTerm2
+   ./run_dev.sh                      # Primary dev command
+   ./scripts/dev/run_dev_iterm.sh    # For iTerm2 users
    ```
 
    **Option 2: Run servers manually**
    
    Backend:
    ```bash
-   ./run_backend.sh
+   ./scripts/dev/run_backend.sh
    ```
    
    Frontend (in new terminal):
    ```bash
-   ./run_frontend.sh
+   ./scripts/dev/run_frontend.sh
    ```
    
    **Stop all servers:**
    ```bash
-   ./kill_servers.sh
+   ./scripts/dev/kill_servers.sh
    ```
 
 4. **Access the application**
