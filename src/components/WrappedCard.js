@@ -12,10 +12,54 @@ const WrappedCard = ({ stats, user, timeRange }) => {
   const [selectedCard, setSelectedCard] = useState('overview');
   const [topTracks, setTopTracks] = useState([]);
   const [topArtists, setTopArtists] = useState([]);
+  const [imagesLoaded, setImagesLoaded] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     fetchTopItems();
   }, [timeRange]);
+
+  // Preload images to ensure they're available for html2canvas
+  useEffect(() => {
+    const imagesToLoad = [];
+    
+    // Collect all image URLs
+    if (stats?.top_artist?.image) imagesToLoad.push(stats.top_artist.image);
+    if (stats?.top_track?.image) imagesToLoad.push(stats.top_track.image);
+    topArtists.forEach(artist => {
+      if (artist.image) imagesToLoad.push(artist.image);
+    });
+    topTracks.forEach(track => {
+      if (track.image) imagesToLoad.push(track.image);
+    });
+
+    // Preload all images
+    let loadedCount = 0;
+    const totalImages = imagesToLoad.length;
+    
+    if (totalImages === 0) {
+      setImagesLoaded(true);
+      return;
+    }
+
+    imagesToLoad.forEach(src => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        loadedCount++;
+        if (loadedCount === totalImages) {
+          setImagesLoaded(true);
+        }
+      };
+      img.onerror = () => {
+        loadedCount++;
+        if (loadedCount === totalImages) {
+          setImagesLoaded(true);
+        }
+      };
+      img.src = src;
+    });
+  }, [stats, topArtists, topTracks]);
 
   const fetchTopItems = async () => {
     try {
@@ -31,34 +75,159 @@ const WrappedCard = ({ stats, user, timeRange }) => {
   };
 
   const downloadCard = async () => {
-    if (cardRef.current) {
+    if (cardRef.current && !isDownloading) {
+      setIsDownloading(true);
+      try {
+      // Wait for images to be loaded
+      if (!imagesLoaded) {
+        await new Promise(resolve => {
+          const checkInterval = setInterval(() => {
+            if (imagesLoaded) {
+              clearInterval(checkInterval);
+              resolve();
+            }
+          }, 100);
+          // Timeout after 5 seconds
+          setTimeout(() => {
+            clearInterval(checkInterval);
+            resolve();
+          }, 5000);
+        });
+      }
+      
+      // Additional wait for rendering
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
       const canvas = await html2canvas(cardRef.current, {
         backgroundColor: '#191414',
-        scale: 2
+        scale: 2,
+        useCORS: true, // Enable CORS for external images
+        allowTaint: false, // Don't allow tainted canvas for better compatibility
+        logging: false, // Disable logging
+        imageTimeout: 15000, // Wait up to 15 seconds for images
+        proxy: undefined, // Disable proxy to avoid CORS issues
+        removeContainer: true, // Clean up after capture
+        onclone: (clonedDoc) => {
+          // Fix any styling issues in the cloned document
+          const clonedElement = clonedDoc.querySelector('[data-card-content]');
+          if (clonedElement) {
+            // Ensure backgrounds are visible
+            clonedElement.style.backgroundColor = '#191414';
+            // Force gradient backgrounds
+            const allDivs = clonedElement.getElementsByTagName('div');
+            for (let div of allDivs) {
+              if (div.className && div.className.includes('glass')) {
+                div.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                div.style.backdropFilter = 'none';
+              }
+            }
+          }
+        }
       });
+      
+      // Map time range to readable format
+      const timeRangeLabel = {
+        'short_term': '4weeks',
+        'medium_term': '6months',
+        'long_term': 'alltime'
+      }[timeRange] || timeRange;
       
       const link = document.createElement('a');
       const currentYear = new Date().getFullYear();
-      link.download = `spotify-wrapped-${selectedCard}-${currentYear}.png`;
+      link.download = `spotify-wrapped-${selectedCard}-${timeRangeLabel}-${currentYear}.png`;
       link.href = canvas.toDataURL();
       link.click();
+      } catch (error) {
+        console.error('Error capturing card:', error);
+        // Fallback to server-generated image if client-side capture fails
+        try {
+          const response = await axios.get(`http://127.0.0.1:5000/api/generate-wrapped-card?time_range=${timeRange}`, {
+            responseType: 'blob'
+          });
+          
+          const url = window.URL.createObjectURL(new Blob([response.data]));
+          const link = document.createElement('a');
+          link.href = url;
+          const timeRangeLabel = {
+            'short_term': '4weeks',
+            'medium_term': '6months',
+            'long_term': 'alltime'
+          }[timeRange] || timeRange;
+          link.setAttribute('download', `spotify-wrapped-server-${timeRangeLabel}-${new Date().getFullYear()}.png`);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.URL.revokeObjectURL(url);
+        } catch (backupError) {
+          console.error('Backup download also failed:', backupError);
+          alert('Unable to download card. Please try again.');
+        }
+      } finally {
+        setIsDownloading(false);
+      }
     }
   };
 
   const shareCard = async () => {
     if (navigator.share && cardRef.current) {
+      // Wait for images to be loaded
+      if (!imagesLoaded) {
+        await new Promise(resolve => {
+          const checkInterval = setInterval(() => {
+            if (imagesLoaded) {
+              clearInterval(checkInterval);
+              resolve();
+            }
+          }, 100);
+          setTimeout(() => {
+            clearInterval(checkInterval);
+            resolve();
+          }, 5000);
+        });
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
       const canvas = await html2canvas(cardRef.current, {
         backgroundColor: '#191414',
-        scale: 2
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        imageTimeout: 15000,
+        proxy: undefined,
+        removeContainer: true,
+        onclone: (clonedDoc) => {
+          const clonedElement = clonedDoc.querySelector('[data-card-content]');
+          if (clonedElement) {
+            clonedElement.style.backgroundColor = '#191414';
+            const allDivs = clonedElement.getElementsByTagName('div');
+            for (let div of allDivs) {
+              if (div.className && div.className.includes('glass')) {
+                div.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                div.style.backdropFilter = 'none';
+              }
+            }
+          }
+        }
       });
       
+      // Map time range to readable format
+      const timeRangeLabel = {
+        'short_term': '4weeks',
+        'medium_term': '6months',
+        'long_term': 'alltime'
+      }[timeRange] || timeRange;
+      
       canvas.toBlob(async (blob) => {
-        const file = new File([blob], 'spotify-wrapped.png', { type: 'image/png' });
+        const currentYear = new Date().getFullYear();
+        const filename = `spotify-wrapped-${selectedCard}-${timeRangeLabel}-${currentYear}.png`;
+        const file = new File([blob], filename, { type: 'image/png' });
         try {
           await navigator.share({
             files: [file],
-            title: `My Spotify Wrapped ${new Date().getFullYear()}`,
-            text: 'Check out my Spotify Wrapped!'
+            title: `My Spotify Wrapped ${currentYear} - ${timeRangeLabel}`,
+            text: `Check out my ${selectedCard} Spotify Wrapped!`
           });
         } catch (error) {
           console.error('Error sharing:', error);
@@ -98,7 +267,7 @@ const WrappedCard = ({ stats, user, timeRange }) => {
   };
 
   const renderOverviewCard = () => (
-    <div className="w-full aspect-[9/16] bg-gradient-to-br from-spotify-black via-purple-900/30 to-spotify-black rounded-3xl p-8 flex flex-col justify-between">
+    <div data-card-content className="w-full aspect-[9/16] bg-gradient-to-br from-spotify-black via-purple-900/30 to-spotify-black rounded-3xl p-8 flex flex-col justify-between">
       {/* Header */}
       <div className="text-center">
         <motion.div
@@ -141,12 +310,18 @@ const WrappedCard = ({ stats, user, timeRange }) => {
             className="glass rounded-2xl p-4"
           >
             <p className="text-xs text-spotify-lightgray mb-2">TOP ARTIST</p>
-            {stats?.top_artist?.image && (
+            {stats?.top_artist?.image ? (
               <img 
                 src={stats.top_artist.image} 
                 alt={stats.top_artist.name}
                 className="w-16 h-16 rounded-full mx-auto mb-2"
+                crossOrigin="anonymous"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
               />
+            ) : (
+              <div className="w-16 h-16 rounded-full mx-auto mb-2 bg-spotify-darkgray animate-pulse" />
             )}
             <p className="text-sm font-bold text-white truncate">
               {stats?.top_artist?.name || 'Unknown'}
@@ -160,12 +335,18 @@ const WrappedCard = ({ stats, user, timeRange }) => {
             className="glass rounded-2xl p-4"
           >
             <p className="text-xs text-spotify-lightgray mb-2">TOP TRACK</p>
-            {stats?.top_track?.image && (
+            {stats?.top_track?.image ? (
               <img 
                 src={stats.top_track.image} 
                 alt={stats.top_track.name}
                 className="w-16 h-16 rounded-lg mx-auto mb-2"
+                crossOrigin="anonymous"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
               />
+            ) : (
+              <div className="w-16 h-16 rounded-lg mx-auto mb-2 bg-spotify-darkgray animate-pulse" />
             )}
             <p className="text-sm font-bold text-white truncate">
               {stats?.top_track?.name || 'Unknown'}
@@ -221,7 +402,7 @@ const WrappedCard = ({ stats, user, timeRange }) => {
   );
 
   const renderTopArtistsCard = () => (
-    <div className="w-full aspect-[9/16] bg-gradient-to-br from-spotify-black via-blue-900/30 to-spotify-black rounded-3xl p-8 flex flex-col">
+    <div data-card-content className="w-full aspect-[9/16] bg-gradient-to-br from-spotify-black via-blue-900/30 to-spotify-black rounded-3xl p-8 flex flex-col">
       {/* Header */}
       <div className="text-center mb-8">
         <Users className="w-12 h-12 text-spotify-green mx-auto mb-4" />
@@ -242,12 +423,18 @@ const WrappedCard = ({ stats, user, timeRange }) => {
             <div className="text-2xl font-black text-spotify-green w-8 text-center">
               {index + 1}
             </div>
-            {artist.image && (
+            {artist.image ? (
               <img 
                 src={artist.image} 
                 alt={artist.name}
                 className="w-14 h-14 rounded-full"
+                crossOrigin="anonymous"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
               />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-spotify-darkgray animate-pulse" />
             )}
             <div className="flex-1">
               <p className="text-white font-bold truncate">{artist.name}</p>
@@ -269,7 +456,7 @@ const WrappedCard = ({ stats, user, timeRange }) => {
   );
 
   const renderTopTracksCard = () => (
-    <div className="w-full aspect-[9/16] bg-gradient-to-br from-spotify-black via-green-900/30 to-spotify-black rounded-3xl p-8 flex flex-col">
+    <div data-card-content className="w-full aspect-[9/16] bg-gradient-to-br from-spotify-black via-green-900/30 to-spotify-black rounded-3xl p-8 flex flex-col">
       {/* Header */}
       <div className="text-center mb-8">
         <Music className="w-12 h-12 text-spotify-green mx-auto mb-4" />
@@ -290,12 +477,18 @@ const WrappedCard = ({ stats, user, timeRange }) => {
             <div className="text-2xl font-black text-spotify-green w-8 text-center">
               {index + 1}
             </div>
-            {track.image && (
+            {track.image ? (
               <img 
                 src={track.image} 
                 alt={track.name}
                 className="w-14 h-14 rounded-lg"
+                crossOrigin="anonymous"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
               />
+            ) : (
+              <div className="w-14 h-14 rounded-lg bg-spotify-darkgray animate-pulse" />
             )}
             <div className="flex-1 min-w-0">
               <p className="text-white font-bold truncate">{track.name}</p>
@@ -315,7 +508,7 @@ const WrappedCard = ({ stats, user, timeRange }) => {
   );
 
   const renderStatsCard = () => (
-    <div className="w-full aspect-[9/16] bg-gradient-to-br from-spotify-black via-orange-900/30 to-spotify-black rounded-3xl p-8 flex flex-col">
+    <div data-card-content className="w-full aspect-[9/16] bg-gradient-to-br from-spotify-black via-orange-900/30 to-spotify-black rounded-3xl p-8 flex flex-col">
       {/* Header */}
       <div className="text-center mb-8">
         <BarChart3 className="w-12 h-12 text-spotify-green mx-auto mb-4" />
@@ -449,13 +642,27 @@ const WrappedCard = ({ stats, user, timeRange }) => {
       {/* Action Buttons */}
       <div className="flex justify-center space-x-4">
         <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+          whileHover={{ scale: isDownloading ? 1 : 1.05 }}
+          whileTap={{ scale: isDownloading ? 1 : 0.95 }}
           onClick={downloadCard}
-          className="flex items-center space-x-2 px-8 py-3 bg-spotify-green text-spotify-black font-bold rounded-full hover:bg-green-400 transition-colors"
+          disabled={isDownloading}
+          className={`flex items-center space-x-2 px-8 py-3 font-bold rounded-full transition-colors ${
+            isDownloading 
+              ? 'bg-spotify-darkgray text-spotify-lightgray cursor-wait' 
+              : 'bg-spotify-green text-spotify-black hover:bg-green-400'
+          }`}
         >
-          <Download className="w-5 h-5" />
-          <span>Download Card</span>
+          {isDownloading ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-spotify-lightgray border-t-transparent" />
+              <span>Generating...</span>
+            </>
+          ) : (
+            <>
+              <Download className="w-5 h-5" />
+              <span>Download Card</span>
+            </>
+          )}
         </motion.button>
 
         {navigator.share && (
