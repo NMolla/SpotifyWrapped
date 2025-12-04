@@ -46,12 +46,13 @@ spotify-wrapped/
 
 3. **Run the application**
 
-   **Option 1: Run both servers together**
+   **Option 1: Run in separate Terminal tabs (Recommended)**
    ```bash
-   ./run_dev.sh
+   ./run_dev.sh         # For Terminal.app
+   ./run_dev_iterm.sh   # For iTerm2
    ```
 
-   **Option 2: Run servers separately**
+   **Option 2: Run servers manually**
    
    Backend:
    ```bash
@@ -61,6 +62,11 @@ spotify-wrapped/
    Frontend (in new terminal):
    ```bash
    ./run_frontend.sh
+   ```
+   
+   **Stop all servers:**
+   ```bash
+   ./kill_servers.sh
    ```
 
 4. **Access the application**

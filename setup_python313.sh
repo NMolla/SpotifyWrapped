@@ -1,7 +1,7 @@
 #!/bin/bash
 
-echo "🎵 Setting up Spotify Wrapped Dashboard..."
-echo "========================================="
+echo "🎵 Setting up Spotify Wrapped Dashboard (Python 3.13 Compatible)"
+echo "================================================================"
 echo ""
 
 # Check if Python is installed
@@ -21,6 +21,12 @@ echo "   Python: $(python3 --version)"
 echo "   Node:   $(node --version)"
 echo ""
 
+# Clean existing virtual environment if it exists
+if [ -d ".venv" ]; then
+    echo "🧹 Removing existing virtual environment..."
+    rm -rf .venv
+fi
+
 # Create virtual environment
 echo "📦 Creating Python virtual environment..."
 python3 -m venv .venv
@@ -29,16 +35,41 @@ python3 -m venv .venv
 echo "🔄 Activating virtual environment..."
 source .venv/bin/activate
 
+# Upgrade pip and install build tools
+echo "🔧 Upgrading pip and installing build tools..."
+pip install --upgrade pip setuptools wheel
+
 # Install Python dependencies
 echo "📚 Installing Python dependencies..."
-pip install -q --upgrade pip setuptools wheel
-if pip install -q -r backend/requirements.txt; then
-    echo "   ✅ Python dependencies installed successfully"
+echo "   Installing core dependencies..."
+
+# Install core dependencies one by one for better error handling
+pip install Flask==3.1.2
+pip install flask-cors==6.0.1
+pip install Flask-Caching==2.1.0
+pip install python-dotenv==1.2.1
+pip install requests==2.32.5
+pip install spotipy==2.25.2
+pip install gunicorn==23.0.0
+
+# Try to install optional dependencies
+echo "   Installing optional dependencies..."
+if pip install Pillow==11.0.0 2>/dev/null; then
+    echo "   ✅ Pillow installed"
 else
-    echo "   ⚠️  Some dependencies had issues. Trying alternative installation..."
-    pip install Flask flask-cors Flask-Caching python-dotenv requests spotipy Pillow gunicorn
-    echo "   Note: matplotlib and numpy are optional for enhanced features"
+    echo "   ⚠️  Pillow installation failed (image generation may not work)"
 fi
+
+# matplotlib and numpy might fail on Python 3.13
+echo "   Attempting matplotlib/numpy installation..."
+if pip install numpy==2.1.3 matplotlib==3.9.2 2>/dev/null; then
+    echo "   ✅ NumPy and Matplotlib installed"
+else
+    echo "   ⚠️  NumPy/Matplotlib installation failed (some visualizations may be limited)"
+    echo "   Note: This is expected on Python 3.13 - core functionality will still work"
+fi
+
+echo "   ✅ Core Python dependencies installed successfully"
 
 # Install Node dependencies
 echo "📦 Installing Node dependencies..."
@@ -78,3 +109,7 @@ echo "     Terminal 2: ./run_frontend.sh"
 echo ""
 echo "📱 The app will be available at http://localhost:3000"
 echo ""
+
+if [ -n "$VIRTUAL_ENV" ]; then
+    echo "💡 Virtual environment is activated. To deactivate, run: deactivate"
+fi

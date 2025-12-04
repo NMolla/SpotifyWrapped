@@ -17,10 +17,20 @@ import requests
 import hashlib
 import json_storage as storage  # Import our JSON storage module
 import statistics
-import matplotlib
-matplotlib.use('Agg')  # Use non-interactive backend
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
+
+# Optional dependencies for enhanced features
+try:
+    import matplotlib
+    matplotlib.use('Agg')  # Use non-interactive backend
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as patches
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
+    matplotlib = None
+    plt = None
+    patches = None
+
 try:
     import numpy as np
 except ImportError:

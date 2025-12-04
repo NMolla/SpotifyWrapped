@@ -13,6 +13,6 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 
-# Run the React app
+# Run the React app (with browser auto-open disabled)
 echo "✅ Starting React server on port 3000..."
-npm start
+BROWSER=none npm start

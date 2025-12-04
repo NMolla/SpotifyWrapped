@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script to run both backend and frontend servers in separate terminal tabs
+# Script to run both backend and frontend servers WITHOUT opening browser
 
 echo "🎵 Spotify Wrapped Full Stack Application"
 echo "========================================="
@@ -71,7 +71,7 @@ fi
 echo ""
 echo "✅ Servers starting in separate Terminal tabs!"
 echo ""
-echo "📍 URLs:"
+echo "📍 URLs (open manually when ready):"
 echo "   Backend:  http://127.0.0.1:5000"
 echo "   Frontend: http://localhost:3000"
 echo ""
@@ -81,10 +81,4 @@ echo "   - Switch between tabs with Cmd+Shift+[ or Cmd+Shift+]"
 echo "   - Stop a server with Ctrl+C in its tab"
 echo "   - Close a tab with Cmd+W"
 echo ""
-
-# Wait for servers to fully start then open the browser
-sleep 5
-echo "🌐 Opening browser (single tab)..."
-open http://localhost:3000
-
-echo "✨ Setup complete! Check your Terminal tabs and browser."
+echo "✨ Servers starting! Open http://localhost:3000 when ready."
