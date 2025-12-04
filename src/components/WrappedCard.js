@@ -93,7 +93,6 @@ const WrappedCard = ({ stats, user, timeRange }) => {
                   <div>
                     <p className="text-spotify-lightgray text-sm">TOP ARTIST</p>
                     <p className="text-xl font-bold text-white">{stats.top_artist.name}</p>
-                    <p className="text-sm text-spotify-green">{stats.top_artist.genres?.[0]}</p>
                   </div>
                 </div>
               </div>

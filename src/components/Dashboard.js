@@ -112,6 +112,13 @@ const Dashboard = () => {
                 <Sparkles className="w-4 h-4" />
                 <span>2025 Wrapped</span>
               </button>
+              <button
+                onClick={() => navigate('/hub')}
+                className="flex items-center space-x-2 px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-full hover:scale-105 transition-transform"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>All Features Hub</span>
+              </button>
               {user && (
                 <div className="flex items-center space-x-3">
                   {user.image && (

@@ -5,6 +5,7 @@ import LandingPage from './components/LandingPage';
 import Dashboard from './components/Dashboard';
 import LoadingScreen from './components/LoadingScreen';
 import SpotifyWrapped2025 from './components/SpotifyWrapped2025';
+import WrappedHub from './components/WrappedHub';
 
 // Set up axios defaults
 axios.defaults.withCredentials = true;
@@ -47,6 +48,10 @@ function App() {
         <Route 
           path="/wrapped" 
           element={isAuthenticated ? <SpotifyWrapped2025 /> : <Navigate to="/" />} 
+        />
+        <Route 
+          path="/hub" 
+          element={isAuthenticated ? <WrappedHub /> : <Navigate to="/" />} 
         />
       </Routes>
     </Router>

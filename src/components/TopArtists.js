@@ -67,15 +67,7 @@ const TopArtists = ({ timeRange }) => {
                   className="w-32 h-32 rounded-full mx-auto mb-4 object-cover ring-4 ring-spotify-green/20"
                 />
               )}
-              <h3 className="text-xl font-bold text-white mb-2">{artist.name}</h3>
-              
-              <div className="flex flex-wrap justify-center gap-2 mb-4">
-                {artist.genres.slice(0, 3).map((genre, i) => (
-                  <span key={i} className="text-xs px-2 py-1 bg-spotify-green/20 text-spotify-green rounded-full">
-                    {genre}
-                  </span>
-                ))}
-              </div>
+              <h3 className="text-xl font-bold text-white mb-4">{artist.name}</h3>
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
@@ -122,13 +114,6 @@ const TopArtists = ({ timeRange }) => {
               {/* Artist Info */}
               <div className="flex-1">
                 <h3 className="text-white font-semibold text-lg">{artist.name}</h3>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {artist.genres.slice(0, 3).map((genre, i) => (
-                    <span key={i} className="text-xs text-spotify-lightgray">
-                      {genre}
-                    </span>
-                  ))}
-                </div>
               </div>
 
               {/* Stats */}

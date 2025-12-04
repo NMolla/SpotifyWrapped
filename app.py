@@ -25,6 +25,7 @@ try:
     import numpy as np
 except ImportError:
     np = None  # Handle if numpy not installed
+from official_instagram_generator import OfficialWrappedGenerator
 
 load_dotenv()
 
@@ -395,6 +396,30 @@ def index():
     if session.get('token_info'):
         return jsonify({'authenticated': True})
     return jsonify({'authenticated': False})
+
+@app.route('/wrapped-enhanced')
+def wrapped_enhanced():
+    """Serve the enhanced wrapped features page."""
+    if not session.get('token_info'):
+        return redirect('/login')
+    
+    try:
+        with open('wrapped_enhanced.html', 'r') as f:
+            return f.read()
+    except FileNotFoundError:
+        return jsonify({'error': 'Enhanced UI file not found'}), 404
+
+@app.route('/instagram-share')
+def instagram_share():
+    """Serve the Instagram share page."""
+    if not session.get('token_info'):
+        return redirect('/login')
+    
+    try:
+        with open('instagram_share.html', 'r') as f:
+            return f.read()
+    except FileNotFoundError:
+        return jsonify({'error': 'Instagram share page not found'}), 404
 
 @app.route('/sync-ui')
 def sync_ui():
@@ -1288,6 +1313,44 @@ def get_wrapped_stats(time_range):
         total_duration = sum(track.get('duration_ms', 0) for track in all_top_tracks)
         avg_popularity = sum(track.get('popularity', 0) for track in all_top_tracks) / len(all_top_tracks) if all_top_tracks else 0
         
+        # Calculate listening age based on release dates
+        from datetime import datetime
+        current_year = datetime.now().year
+        release_years = []
+        for track in all_top_tracks:
+            release_date = track.get('album', {}).get('release_date', '')
+            if release_date:
+                try:
+                    # Handle different date formats (YYYY, YYYY-MM, YYYY-MM-DD)
+                    year = int(release_date.split('-')[0])
+                    release_years.append(year)
+                except:
+                    pass
+        
+        listening_age_stats = {}
+        if release_years:
+            avg_release_year = sum(release_years) / len(release_years)
+            avg_song_age = current_year - avg_release_year
+            
+            # Determine decade distribution
+            decade_counts = {}
+            for year in release_years:
+                decade = (year // 10) * 10
+                decade_key = f"{decade}s"
+                decade_counts[decade_key] = decade_counts.get(decade_key, 0) + 1
+            
+            # Get most common decade
+            most_common_decade = max(decade_counts, key=decade_counts.get) if decade_counts else None
+            
+            listening_age_stats = {
+                'average_year': round(avg_release_year),
+                'average_age': round(avg_song_age),
+                'newest_year': max(release_years),
+                'oldest_year': min(release_years),
+                'decade_distribution': decade_counts,
+                'favorite_decade': most_common_decade
+            }
+        
         # Determine music characteristics
         characteristics = analyze_music_taste(all_top_tracks, all_top_artists, genre_counts)
         
@@ -1309,6 +1372,7 @@ def get_wrapped_stats(time_range):
             'total_artists': len(all_top_artists),
             'total_tracks': len(all_top_tracks),
             'characteristics': characteristics,
+            'listening_age': listening_age_stats,
             'time_period': get_time_period_label(time_range)
         }
         
@@ -1370,9 +1434,27 @@ def spotify_wrapped(year):
         current_year = datetime.now().year
         current_month = datetime.now().month
         
-        # Use medium_term for current year (approximates Jan-Oct)
-        # Use long_term for previous years
-        time_range = 'medium_term' if year == current_year else 'long_term'
+        # Spotify Wrapped normally covers Jan 1 - Oct 31
+        # Since we can't get exact date ranges from Spotify API, we approximate:
+        # - If requesting current year and it's Nov/Dec: use long_term (includes most of the year)
+        # - If requesting current year and it's before Nov: use medium_term (last 6 months)
+        # - For previous years: always use long_term
+        if year == current_year:
+            # For current year Wrapped (especially in Nov/Dec), use long_term for fuller coverage
+            if current_month >= 11:  # November or December
+                time_range = 'long_term'  # Better approximation of full year
+            else:
+                time_range = 'medium_term'  # Mid-year check
+        else:
+            time_range = 'long_term'  # Historical data
+        
+        # Generate cache key for this request
+        cache_key = generate_cache_key('spotify_wrapped', year, time_range)
+        
+        # Try to get from cache first
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return jsonify(cached_data)
         
         # Ensure data is fresh
         ensure_data_freshness(user_id, 'tracks', time_range)
@@ -1382,9 +1464,9 @@ def spotify_wrapped(year):
         all_tracks = storage.load_top_tracks(user_id, time_range) or []
         all_artists = storage.load_top_artists(user_id, time_range) or []
         
-        # Get just top 5 for display (like official Wrapped)
-        top_5_tracks = all_tracks[:5]
-        top_5_artists = all_artists[:5]
+        # Get top 10 for display
+        top_10_tracks = all_tracks[:10]
+        top_10_artists = all_artists[:10]
         
         # Calculate total listening time (estimated from all tracks)
         total_ms = sum(track['duration_ms'] for track in all_tracks)
@@ -1431,9 +1513,9 @@ def spotify_wrapped(year):
         unique_genres = len(set(all_genres))
         avg_track_popularity = sum(t['popularity'] for t in all_tracks) / len(all_tracks) if all_tracks else 0
         
-        # Format top 5 tracks with play count estimates
+        # Format top 10 tracks with play count estimates
         formatted_tracks = []
-        for i, track in enumerate(top_5_tracks, 1):
+        for i, track in enumerate(top_10_tracks, 1):
             formatted_tracks.append({
                 'position': i,
                 'name': track['name'],
@@ -1444,9 +1526,9 @@ def spotify_wrapped(year):
                 'preview_url': track['preview_url']
             })
         
-        # Format top 5 artists
+        # Format top 10 artists
         formatted_artists = []
-        for i, artist in enumerate(top_5_artists, 1):
+        for i, artist in enumerate(top_10_artists, 1):
             formatted_artists.append({
                 'position': i,
                 'name': artist['name'],
@@ -1455,12 +1537,48 @@ def spotify_wrapped(year):
                 'followers': artist['followers']['total']
             })
         
+        # Calculate listening age based on all tracks
+        from datetime import datetime
+        current_year = datetime.now().year
+        release_years = []
+        for track in all_tracks:
+            release_date = track.get('album', {}).get('release_date', '')
+            if release_date:
+                try:
+                    year = int(release_date.split('-')[0])
+                    release_years.append(year)
+                except:
+                    pass
+        
+        listening_age_stats = {}
+        if release_years:
+            avg_release_year = sum(release_years) / len(release_years)
+            avg_song_age = current_year - avg_release_year
+            
+            # Determine decade distribution
+            decade_counts = {}
+            for year in release_years:
+                decade = (year // 10) * 10
+                decade_key = f"{decade}s"
+                decade_counts[decade_key] = decade_counts.get(decade_key, 0) + 1
+            
+            most_common_decade = max(decade_counts, key=decade_counts.get) if decade_counts else None
+            
+            listening_age_stats = {
+                'average_year': round(avg_release_year),
+                'average_age': round(avg_song_age),
+                'newest_year': max(release_years),
+                'oldest_year': min(release_years),
+                'decade_distribution': decade_counts,
+                'favorite_decade': most_common_decade
+            }
+        
         # Check if user is in top percentage of any artist's listeners
         top_artist_status = None
-        if top_5_artists:
+        if top_10_artists:
             # This is estimated - actual data not available via API
             top_artist_status = {
-                'artist': top_5_artists[0]['name'],
+                'artist': top_10_artists[0]['name'],
                 'percentage': 0.5  # Estimate top 0.5%
             }
         
@@ -1479,6 +1597,7 @@ def spotify_wrapped(year):
                 'unique_genres': unique_genres,
                 'avg_popularity': round(avg_track_popularity, 1)
             },
+            'listening_age': listening_age_stats,
             'top_artist_status': top_artist_status,
             'top_song': formatted_tracks[0] if formatted_tracks else None,
             'top_artist': formatted_artists[0] if formatted_artists else None,
@@ -1668,8 +1787,8 @@ def generate_wrapped_card():
             all_artists = fetch_all_spotify_items(sp, sp.current_user_top_artists, time_range=time_range)
             cache.set(artists_cache_key, all_artists, timeout=900)  # Cache for 15 minutes
         
-        # Create wrapped card image with top 5 items
-        img = create_wrapped_image(user_name, all_tracks[:5], all_artists[:5], time_range)
+        # Create wrapped card image with top 10 items
+        img = create_wrapped_image(user_name, all_tracks[:10], all_artists[:10], time_range)
         
         # Convert to bytes
         img_io = BytesIO()
@@ -1726,26 +1845,30 @@ def create_wrapped_image(user_name, tracks, artists, time_range):
     y_position += 100
     
     # Top Artists Section
-    draw.text((width/2, y_position), "TOP ARTISTS", anchor="mt", fill='#1DB954', font=header_font)
-    y_position += 70
-    
-    for i, artist in enumerate(artists[:5], 1):
-        draw.text((100, y_position), f"{i}. {artist['name'][:40]}", fill='white', font=body_font)
-        y_position += 60
-    
+    draw.text((width/2, y_position), "TOP 10 ARTISTS", anchor="mt", fill='#1DB954', font=header_font)
     y_position += 60
     
-    # Top Tracks Section
-    draw.text((width/2, y_position), "TOP TRACKS", anchor="mt", fill='#1DB954', font=header_font)
-    y_position += 70
+    # Display in two columns for better space usage
+    for i, artist in enumerate(artists[:10], 1):
+        x_pos = 100 if i <= 5 else 580
+        y_pos = y_position + ((i-1) % 5) * 50
+        draw.text((x_pos, y_pos), f"{i}. {artist['name'][:35]}", fill='white', font=body_font)
     
-    for i, track in enumerate(tracks[:5], 1):
-        track_name = track['name'][:30]
-        artist_name = track['artists'][0]['name'][:25] if track['artists'] else 'Unknown'
-        draw.text((100, y_position), f"{i}. {track_name}", fill='white', font=body_font)
-        y_position += 45
-        draw.text((120, y_position), f"   by {artist_name}", fill='#B3B3B3', font=small_font)
-        y_position += 55
+    y_position += 250 + 40  # Space for 5 rows + margin
+    
+    # Top Tracks Section
+    draw.text((width/2, y_position), "TOP 10 TRACKS", anchor="mt", fill='#1DB954', font=header_font)
+    y_position += 60
+    
+    # Display tracks in two columns as well
+    for i, track in enumerate(tracks[:10], 1):
+        track_name = track['name'][:25]
+        artist_name = track['artists'][0]['name'][:20] if track['artists'] else 'Unknown'
+        x_pos = 60 if i <= 5 else 560
+        y_pos = y_position + ((i-1) % 5) * 70
+        
+        draw.text((x_pos, y_pos), f"{i}. {track_name}", fill='white', font=body_font)
+        draw.text((x_pos + 20, y_pos + 35), f"by {artist_name}", fill='#B3B3B3', font=small_font)
     
     # Footer
     y_position = height - 150
@@ -2152,6 +2275,249 @@ def get_music_evolution():
             'evolution': evolution,
             'trends': trends
         })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/instagram-wrapped/<card_type>')
+def get_instagram_wrapped(card_type):
+    """Generate Instagram-sharable wrapped cards."""
+    sp = get_spotify_client()
+    if not sp:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    valid_types = ['summary', 'tracks', 'artists', 'personality', 'all']
+    if card_type not in valid_types:
+        return jsonify({'error': f'Invalid card type. Choose from: {", ".join(valid_types)}'}), 400
+    
+    try:
+        user_id = get_user_id()
+        current_year = datetime.now().year
+        time_range = request.args.get('time_range', 'long_term' if datetime.now().month >= 11 else 'medium_term')
+        
+        # Get user data
+        user = sp.current_user()
+        user_name = user.get('display_name', 'My')
+        
+        # Load data from storage
+        tracks = storage.load_top_tracks(user_id, time_range) or []
+        artists = storage.load_top_artists(user_id, time_range) or []
+        
+        # Calculate stats
+        total_minutes = sum(t.get('duration_ms', 0) for t in tracks) // 60000
+        
+        # Get genres
+        all_genres = []
+        for artist in artists:
+            all_genres.extend(artist.get('genres', []))
+        
+        genre_counts = Counter(all_genres)
+        top_genre = genre_counts.most_common(1)[0][0] if genre_counts else 'Diverse'
+        
+        # Get audio features for personality
+        personality = {}
+        audio_features = {}
+        if tracks:
+            analysis = analyze_music_characteristics(sp, tracks)
+            personality = analysis.get('listening_personality', {})
+            audio_features = {
+                'energy': analysis.get('energy', {}).get('average', 0),
+                'valence': analysis.get('valence', {}).get('average', 0),
+                'danceability': analysis.get('danceability', {}).get('average', 0)
+            }
+        
+        # Prepare user data with actual Spotify images
+        user_data = {
+            'year': current_year,
+            'user_name': user_name,
+            'total_minutes': total_minutes,
+            'top_genre': top_genre,
+            'unique_tracks': len(tracks),
+            'unique_artists': len(artists),
+            'top_artist': {
+                'name': artists[0]['name'] if artists else 'Unknown',
+                'genres': artists[0].get('genres', [])[:3] if artists else [],
+                'image': artists[0]['images'][0]['url'] if artists and artists[0].get('images') and len(artists[0]['images']) > 0 else None
+            },
+            'top_track': {
+                'name': tracks[0]['name'] if tracks else 'Unknown',
+                'artist': tracks[0]['artists'][0]['name'] if tracks and tracks[0].get('artists') else 'Unknown',
+                'image': tracks[0]['album']['images'][0]['url'] if tracks and tracks[0].get('album', {}).get('images') and len(tracks[0]['album']['images']) > 0 else None
+            },
+            'top_tracks': [
+                {
+                    'name': t['name'],
+                    'artist': t['artists'][0]['name'] if t.get('artists') else 'Unknown',
+                    'image': t['album']['images'][0]['url'] if t.get('album', {}).get('images') and len(t['album']['images']) > 0 else None
+                } for t in tracks[:10]
+            ],
+            'top_artists': [
+                {
+                    'name': a['name'],
+                    'genres': a.get('genres', []),
+                    'image': a['images'][0]['url'] if a.get('images') and len(a['images']) > 0 else None
+                } for a in artists[:10]
+            ],
+            'personality': personality,
+            'audio_features': audio_features
+        }
+        
+        # Generate images using official style generator
+        generator = OfficialWrappedGenerator()
+        
+        if card_type == 'summary':
+            img = generator.create_official_wrapped_summary(user_data)
+        elif card_type == 'tracks':
+            img = generator.create_official_top_tracks(user_data)
+        elif card_type == 'artists':
+            img = generator.create_official_top_artists(user_data)
+        elif card_type == 'personality':
+            img = generator.create_official_listening_personality(user_data)
+        elif card_type == 'all':
+            # Return links to all types
+            return jsonify({
+                'cards': [
+                    {'type': 'summary', 'url': f'/api/instagram-wrapped/summary?time_range={time_range}'},
+                    {'type': 'tracks', 'url': f'/api/instagram-wrapped/tracks?time_range={time_range}'},
+                    {'type': 'artists', 'url': f'/api/instagram-wrapped/artists?time_range={time_range}'},
+                    {'type': 'personality', 'url': f'/api/instagram-wrapped/personality?time_range={time_range}'}
+                ],
+                'download_all': f'/api/instagram-wrapped-download?time_range={time_range}'
+            })
+        
+        # Convert to bytes
+        img_buffer = BytesIO()
+        img.save(img_buffer, format='PNG', quality=95)
+        img_buffer.seek(0)
+        
+        # Return as downloadable image
+        filename = f"spotify_wrapped_{current_year}_{card_type}.png"
+        return send_file(
+            img_buffer,
+            mimetype='image/png',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/instagram-wrapped-download')
+def download_all_instagram_cards():
+    """Download all Instagram cards as a ZIP file."""
+    sp = get_spotify_client()
+    if not sp:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        import zipfile
+        from tempfile import NamedTemporaryFile
+        
+        user_id = get_user_id()
+        current_year = datetime.now().year
+        time_range = request.args.get('time_range', 'long_term' if datetime.now().month >= 11 else 'medium_term')
+        
+        # Get user data (similar to above)
+        user = sp.current_user()
+        user_name = user.get('display_name', 'My')
+        
+        tracks = storage.load_top_tracks(user_id, time_range) or []
+        artists = storage.load_top_artists(user_id, time_range) or []
+        
+        total_minutes = sum(t.get('duration_ms', 0) for t in tracks) // 60000
+        
+        all_genres = []
+        for artist in artists:
+            all_genres.extend(artist.get('genres', []))
+        
+        genre_counts = Counter(all_genres)
+        top_genre = genre_counts.most_common(1)[0][0] if genre_counts else 'Diverse'
+        
+        personality = {}
+        audio_features = {}
+        if tracks:
+            analysis = analyze_music_characteristics(sp, tracks)
+            personality = analysis.get('listening_personality', {})
+            audio_features = {
+                'energy': analysis.get('energy', {}).get('average', 0),
+                'valence': analysis.get('valence', {}).get('average', 0),
+                'danceability': analysis.get('danceability', {}).get('average', 0)
+            }
+        
+        user_data = {
+            'year': current_year,
+            'user_name': user_name,
+            'total_minutes': total_minutes,
+            'top_genre': top_genre,
+            'unique_tracks': len(tracks),
+            'unique_artists': len(artists),
+            'top_artist': {
+                'name': artists[0]['name'] if artists else 'Unknown',
+                'genres': artists[0].get('genres', [])[:3] if artists else [],
+                'image': artists[0]['images'][0]['url'] if artists and artists[0].get('images') and len(artists[0]['images']) > 0 else None
+            },
+            'top_track': {
+                'name': tracks[0]['name'] if tracks else 'Unknown',
+                'artist': tracks[0]['artists'][0]['name'] if tracks and tracks[0].get('artists') else 'Unknown',
+                'image': tracks[0]['album']['images'][0]['url'] if tracks and tracks[0].get('album', {}).get('images') and len(tracks[0]['album']['images']) > 0 else None
+            },
+            'top_tracks': [
+                {
+                    'name': t['name'],
+                    'artist': t['artists'][0]['name'] if t.get('artists') else 'Unknown',
+                    'image': t['album']['images'][0]['url'] if t.get('album', {}).get('images') and len(t['album']['images']) > 0 else None
+                } for t in tracks[:10]
+            ],
+            'top_artists': [
+                {
+                    'name': a['name'],
+                    'genres': a.get('genres', []),
+                    'image': a['images'][0]['url'] if a.get('images') and len(a['images']) > 0 else None
+                } for a in artists[:10]
+            ],
+            'personality': personality,
+            'audio_features': audio_features
+        }
+        
+        # Generate all images using official style
+        generator = OfficialWrappedGenerator()
+        
+        # Create ZIP file
+        zip_buffer = BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            # Summary card
+            img = generator.create_official_wrapped_summary(user_data)
+            img_buffer = BytesIO()
+            img.save(img_buffer, format='PNG')
+            zip_file.writestr(f'wrapped_{current_year}_summary.png', img_buffer.getvalue())
+            
+            # Top tracks
+            img = generator.create_official_top_tracks(user_data)
+            img_buffer = BytesIO()
+            img.save(img_buffer, format='PNG')
+            zip_file.writestr(f'wrapped_{current_year}_top_tracks.png', img_buffer.getvalue())
+            
+            # Top artists
+            img = generator.create_official_top_artists(user_data)
+            img_buffer = BytesIO()
+            img.save(img_buffer, format='PNG')
+            zip_file.writestr(f'wrapped_{current_year}_top_artists.png', img_buffer.getvalue())
+            
+            # Personality card
+            if personality:
+                img = generator.create_official_listening_personality(user_data)
+                img_buffer = BytesIO()
+                img.save(img_buffer, format='PNG')
+                zip_file.writestr(f'wrapped_{current_year}_personality.png', img_buffer.getvalue())
+        
+        zip_buffer.seek(0)
+        
+        return send_file(
+            zip_buffer,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=f'spotify_wrapped_{current_year}_instagram.zip'
+        )
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

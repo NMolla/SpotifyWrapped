@@ -160,36 +160,36 @@ const SpotifyWrapped2025 = () => {
         </motion.div>
       )
     },
-    // Slide 4: Top 5 Songs
+    // Slide 4: Top 10 Songs
     {
       id: 'top-songs',
       content: (
         <motion.div className="h-full flex flex-col justify-center p-8">
-          <motion.h2 className="text-3xl font-bold text-white mb-8 text-center">
-            Your Top 5 Songs
+          <motion.h2 className="text-3xl font-bold text-white mb-6 text-center">
+            Your Top 10 Songs
           </motion.h2>
-          <div className="space-y-4 max-w-2xl mx-auto w-full">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3 max-w-5xl mx-auto w-full">
             {wrappedData.top_tracks.map((track, index) => (
               <motion.div
                 key={track.position}
-                initial={{ opacity: 0, x: -50 }}
+                initial={{ opacity: 0, x: index < 5 ? -50 : 50 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="flex items-center space-x-4 bg-spotify-darkgray/50 p-4 rounded-lg"
+                transition={{ delay: index * 0.05 }}
+                className="flex items-center space-x-3 bg-spotify-darkgray/50 p-3 rounded-lg"
               >
-                <div className="text-3xl font-black text-spotify-green">
+                <div className="text-2xl font-black text-spotify-green min-w-[30px]">
                   {track.position}
                 </div>
                 {track.image && (
                   <img 
                     src={track.image} 
                     alt={track.name}
-                    className="w-16 h-16 rounded"
+                    className="w-12 h-12 rounded"
                   />
                 )}
-                <div className="flex-1">
-                  <p className="text-white font-semibold">{track.name}</p>
-                  <p className="text-spotify-lightgray text-sm">{track.artist}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-semibold text-sm truncate">{track.name}</p>
+                  <p className="text-spotify-lightgray text-xs truncate">{track.artist}</p>
                 </div>
                 {track.preview_url && (
                   <button
@@ -197,8 +197,8 @@ const SpotifyWrapped2025 = () => {
                     className="text-spotify-green hover:text-white transition-colors"
                   >
                     {playingTrack === track.position ? 
-                      <Pause className="w-6 h-6" /> : 
-                      <Play className="w-6 h-6" />
+                      <Pause className="w-5 h-5" /> : 
+                      <Play className="w-5 h-5" />
                     }
                   </button>
                 )}
@@ -249,40 +249,35 @@ const SpotifyWrapped2025 = () => {
         </motion.div>
       )
     },
-    // Slide 6: Top 5 Artists
+    // Slide 6: Top 10 Artists
     {
       id: 'top-artists',
       content: (
         <motion.div className="h-full flex flex-col justify-center p-8">
-          <motion.h2 className="text-3xl font-bold text-white mb-8 text-center">
-            Your Top 5 Artists
+          <motion.h2 className="text-3xl font-bold text-white mb-6 text-center">
+            Your Top 10 Artists
           </motion.h2>
-          <div className="space-y-4 max-w-2xl mx-auto w-full">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3 max-w-5xl mx-auto w-full">
             {wrappedData.top_artists.map((artist, index) => (
               <motion.div
                 key={artist.position}
-                initial={{ opacity: 0, x: 50 }}
+                initial={{ opacity: 0, x: index < 5 ? -50 : 50 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="flex items-center space-x-4 bg-spotify-darkgray/50 p-4 rounded-lg"
+                transition={{ delay: index * 0.05 }}
+                className="flex items-center space-x-3 bg-spotify-darkgray/50 p-3 rounded-lg"
               >
-                <div className="text-3xl font-black text-spotify-green">
+                <div className="text-2xl font-black text-spotify-green min-w-[30px]">
                   {artist.position}
                 </div>
                 {artist.image && (
                   <img 
                     src={artist.image} 
                     alt={artist.name}
-                    className="w-16 h-16 rounded-full"
+                    className="w-12 h-12 rounded-full"
                   />
                 )}
-                <div className="flex-1">
-                  <p className="text-white font-semibold">{artist.name}</p>
-                  {artist.genres.length > 0 && (
-                    <p className="text-spotify-lightgray text-sm">
-                      {artist.genres.join(', ')}
-                    </p>
-                  )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-semibold text-sm truncate">{artist.name}</p>
                 </div>
               </motion.div>
             ))}
@@ -442,6 +437,67 @@ const SpotifyWrapped2025 = () => {
               <p className="text-spotify-lightgray">Avg. Popularity</p>
             </motion.div>
           </div>
+        </motion.div>
+      )
+    },
+    // Slide 11: Listening Age
+    {
+      id: 'listening-age',
+      content: (
+        <motion.div className="h-full flex flex-col justify-center items-center p-8">
+          <motion.h2 className="text-4xl font-bold text-white mb-12 text-center">
+            Your Listening Age
+          </motion.h2>
+          {wrappedData.listening_age && (
+            <div className="text-center max-w-3xl">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="mb-8"
+              >
+                <div className="text-8xl font-black text-spotify-green mb-4">
+                  {wrappedData.listening_age.favorite_decade}
+                </div>
+                <p className="text-2xl text-spotify-lightgray mb-8">
+                  Your favorite music decade
+                </p>
+              </motion.div>
+              
+              <div className="grid grid-cols-2 gap-6 mb-8">
+                <motion.div
+                  initial={{ opacity: 0, x: -50 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="bg-spotify-darkgray/50 p-6 rounded-lg"
+                >
+                  <p className="text-spotify-lightgray mb-2">Average Song Age</p>
+                  <p className="text-3xl font-bold text-white">
+                    {wrappedData.listening_age.average_age} years
+                  </p>
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, x: 50 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="bg-spotify-darkgray/50 p-6 rounded-lg"
+                >
+                  <p className="text-spotify-lightgray mb-2">Music Range</p>
+                  <p className="text-3xl font-bold text-white">
+                    {wrappedData.listening_age.oldest_year} - {wrappedData.listening_age.newest_year}
+                  </p>
+                </motion.div>
+              </div>
+              
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="text-xl text-spotify-lightgray"
+              >
+                Your music taste spans {wrappedData.listening_age.newest_year - wrappedData.listening_age.oldest_year} years
+              </motion.p>
+            </div>
+          )}
         </motion.div>
       )
     },

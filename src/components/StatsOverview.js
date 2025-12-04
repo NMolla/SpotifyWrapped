@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Music, User, Hash, Clock, Award, TrendingUp, Headphones, Star } from 'lucide-react';
+import { Music, User, Hash, Clock, Award, TrendingUp, Headphones, Star, Calendar } from 'lucide-react';
 
 const StatsOverview = ({ stats, timeRange }) => {
   const statCards = [
@@ -45,6 +45,13 @@ const StatsOverview = ({ stats, timeRange }) => {
       value: stats.total_artists || '0',
       subvalue: 'unique artists',
       color: 'from-pink-500 to-rose-500'
+    },
+    {
+      icon: <Calendar className="w-6 h-6" />,
+      label: 'My Listening Age',
+      value: stats.listening_age?.favorite_decade || 'N/A',
+      subvalue: stats.listening_age?.average_age ? `Avg: ${stats.listening_age.average_age} years old` : '',
+      color: 'from-amber-500 to-yellow-500'
     }
   ];
 
@@ -141,13 +148,6 @@ const StatsOverview = ({ stats, timeRange }) => {
               <div>
                 <p className="text-spotify-lightgray text-sm mb-2">Your #1 Artist</p>
                 <p className="text-xl font-bold text-white mb-1">{stats.top_artist.name}</p>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {stats.top_artist.genres?.slice(0, 3).map((genre, i) => (
-                    <span key={i} className="text-xs px-2 py-1 bg-spotify-green/20 text-spotify-green rounded-full">
-                      {genre}
-                    </span>
-                  ))}
-                </div>
               </div>
             </div>
           </motion.div>

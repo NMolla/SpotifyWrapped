@@ -525,9 +525,6 @@ const EnhancedWrapped = () => {
                 )}
                 <div className="flex-1">
                   <p className="text-white font-semibold">{artist.name}</p>
-                  {artist.genres?.length > 0 && (
-                    <p className="text-spotify-lightgray text-sm">{artist.genres.join(', ')}</p>
-                  )}
                 </div>
               </motion.div>
             ))}
