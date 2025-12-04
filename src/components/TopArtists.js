@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Users, Hash, Star } from 'lucide-react';
+import { Users, Hash, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const TopArtists = ({ timeRange }) => {
   const [artists, setArtists] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12; // 3 featured + 9 in list
 
   useEffect(() => {
+    setCurrentPage(1); // Reset to first page when time range changes
     fetchArtists();
   }, [timeRange]);
 
@@ -29,6 +32,50 @@ const TopArtists = ({ timeRange }) => {
     return num.toString();
   };
 
+  // Calculate pagination
+  const totalPages = Math.ceil(artists.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentArtists = artists.slice(startIndex, endIndex);
+
+  const handlePreviousPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
+
+  const handlePageInputChange = (e) => {
+    const value = e.target.value;
+    
+    // Allow empty input for typing
+    if (value === '') {
+      setCurrentPage('');
+      return;
+    }
+    
+    const page = parseInt(value);
+    
+    // Validate and set page
+    if (!isNaN(page)) {
+      if (page >= 1 && page <= totalPages) {
+        setCurrentPage(page);
+      } else if (page > totalPages) {
+        setCurrentPage(totalPages);
+      } else if (page < 1) {
+        setCurrentPage(1);
+      }
+    }
+  };
+
+  const handlePageInputBlur = () => {
+    // Reset to 1 if empty or invalid
+    if (currentPage === '' || currentPage < 1) {
+      setCurrentPage(1);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-20">
@@ -46,18 +93,20 @@ const TopArtists = ({ timeRange }) => {
 
       {/* Top 3 Artists - Featured */}
       <div className="grid md:grid-cols-3 gap-6 mb-8">
-        {artists.slice(0, 3).map((artist, index) => (
-          <motion.div
-            key={artist.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            whileHover={{ y: -5 }}
-            className="glass rounded-2xl p-6 text-center relative overflow-hidden group"
-          >
-            <div className="absolute top-4 left-4 w-10 h-10 bg-spotify-green rounded-full flex items-center justify-center text-spotify-black font-bold text-lg">
-              {index + 1}
-            </div>
+        {currentArtists.slice(0, 3).map((artist, index) => {
+          const actualIndex = startIndex + index;
+          return (
+            <motion.div
+              key={artist.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              whileHover={{ y: -5 }}
+              className="glass rounded-2xl p-6 text-center relative overflow-hidden group"
+            >
+              <div className="absolute top-4 left-4 w-10 h-10 bg-spotify-green rounded-full flex items-center justify-center text-spotify-black font-bold text-lg">
+                {actualIndex + 1}
+              </div>
             
             <div className="relative z-10">
               {artist.image && (
@@ -81,26 +130,29 @@ const TopArtists = ({ timeRange }) => {
               </div>
             </div>
           </motion.div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Rest of the Artists */}
       <div className="grid gap-4">
-        <AnimatePresence>
-          {artists.slice(3).map((artist, index) => (
-            <motion.div
-              key={artist.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ delay: index * 0.05 }}
-              whileHover={{ scale: 1.01 }}
-              className="glass rounded-xl p-4 flex items-center space-x-4"
-            >
-              {/* Rank */}
-              <div className="text-2xl font-bold text-spotify-green w-10 text-center">
-                {index + 4}
-              </div>
+        <AnimatePresence mode="wait">
+          {currentArtists.slice(3).map((artist, index) => {
+            const actualIndex = startIndex + index + 3;
+            return (
+              <motion.div
+                key={artist.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ delay: index * 0.05 }}
+                whileHover={{ scale: 1.01 }}
+                className="glass rounded-xl p-4 flex items-center space-x-4"
+              >
+                {/* Rank */}
+                <div className="text-2xl font-bold text-spotify-green w-10 text-center">
+                  {actualIndex + 1}
+                </div>
 
               {/* Artist Image */}
               {artist.image && (
@@ -127,10 +179,65 @@ const TopArtists = ({ timeRange }) => {
                   <span className="text-sm">{artist.popularity}</span>
                 </div>
               </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center space-x-4 mt-6">
+          <button
+            onClick={handlePreviousPage}
+            disabled={currentPage === 1}
+            className={`p-2 rounded-lg ${
+              currentPage === 1
+                ? 'bg-spotify-darkgray text-spotify-lightgray/50 cursor-not-allowed'
+                : 'bg-spotify-green text-spotify-black hover:bg-green-400'
+            } transition-colors`}
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          
+          <div className="flex items-center space-x-2 text-white">
+            <span>Page</span>
+            <input
+              type="number"
+              min="1"
+              max={totalPages}
+              value={currentPage}
+              onChange={handlePageInputChange}
+              onBlur={handlePageInputBlur}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.target.blur();
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  setCurrentPage(prev => Math.min(prev + 1, totalPages));
+                } else if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  setCurrentPage(prev => Math.max(prev - 1, 1));
+                }
+              }}
+              className="w-16 px-2 py-1 text-center bg-spotify-darkgray border border-spotify-lightgray/20 rounded-lg text-white focus:outline-none focus:border-spotify-green transition-colors"
+            />
+            <span>of {totalPages}</span>
+          </div>
+          
+          <button
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages}
+            className={`p-2 rounded-lg ${
+              currentPage === totalPages
+                ? 'bg-spotify-darkgray text-spotify-lightgray/50 cursor-not-allowed'
+                : 'bg-spotify-green text-spotify-black hover:bg-green-400'
+            } transition-colors`}
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      )}
 
       {/* Genre Cloud */}
       <motion.div

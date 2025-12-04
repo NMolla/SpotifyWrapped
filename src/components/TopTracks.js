@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Play, Pause, Clock, Heart } from 'lucide-react';
+import { Play, Pause, Clock, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const TopTracks = ({ timeRange }) => {
   const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audio, setAudio] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
+    setCurrentPage(1); // Reset to first page when time range changes
     fetchTracks();
     return () => {
       if (audio) {
@@ -58,6 +61,50 @@ const TopTracks = ({ timeRange }) => {
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
 
+  // Calculate pagination
+  const totalPages = Math.ceil(tracks.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentTracks = tracks.slice(startIndex, endIndex);
+
+  const handlePreviousPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
+
+  const handlePageInputChange = (e) => {
+    const value = e.target.value;
+    
+    // Allow empty input for typing
+    if (value === '') {
+      setCurrentPage('');
+      return;
+    }
+    
+    const page = parseInt(value);
+    
+    // Validate and set page
+    if (!isNaN(page)) {
+      if (page >= 1 && page <= totalPages) {
+        setCurrentPage(page);
+      } else if (page > totalPages) {
+        setCurrentPage(totalPages);
+      } else if (page < 1) {
+        setCurrentPage(1);
+      }
+    }
+  };
+
+  const handlePageInputBlur = () => {
+    // Reset to 1 if empty or invalid
+    if (currentPage === '' || currentPage < 1) {
+      setCurrentPage(1);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-20">
@@ -74,21 +121,23 @@ const TopTracks = ({ timeRange }) => {
       </div>
 
       <div className="grid gap-4">
-        <AnimatePresence>
-          {tracks.map((track, index) => (
-            <motion.div
-              key={track.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ delay: index * 0.05 }}
-              whileHover={{ scale: 1.01 }}
-              className="glass rounded-xl p-4 flex items-center space-x-4 group"
-            >
-              {/* Rank */}
-              <div className="text-3xl font-bold text-spotify-green w-12 text-center">
-                {index + 1}
-              </div>
+        <AnimatePresence mode="wait">
+          {currentTracks.map((track, index) => {
+            const actualIndex = startIndex + index;
+            return (
+              <motion.div
+                key={track.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ delay: index * 0.05 }}
+                whileHover={{ scale: 1.01 }}
+                className="glass rounded-xl p-4 flex items-center space-x-4 group"
+              >
+                {/* Rank */}
+                <div className="text-3xl font-bold text-spotify-green w-12 text-center">
+                  {actualIndex + 1}
+                </div>
 
               {/* Album Cover */}
               <div className="relative">
@@ -130,10 +179,65 @@ const TopTracks = ({ timeRange }) => {
                   <span className="text-sm">{track.popularity}</span>
                 </div>
               </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center space-x-4 mt-6">
+          <button
+            onClick={handlePreviousPage}
+            disabled={currentPage === 1}
+            className={`p-2 rounded-lg ${
+              currentPage === 1
+                ? 'bg-spotify-darkgray text-spotify-lightgray/50 cursor-not-allowed'
+                : 'bg-spotify-green text-spotify-black hover:bg-green-400'
+            } transition-colors`}
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          
+          <div className="flex items-center space-x-2 text-white">
+            <span>Page</span>
+            <input
+              type="number"
+              min="1"
+              max={totalPages}
+              value={currentPage}
+              onChange={handlePageInputChange}
+              onBlur={handlePageInputBlur}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.target.blur();
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  setCurrentPage(prev => Math.min(prev + 1, totalPages));
+                } else if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  setCurrentPage(prev => Math.max(prev - 1, 1));
+                }
+              }}
+              className="w-16 px-2 py-1 text-center bg-spotify-darkgray border border-spotify-lightgray/20 rounded-lg text-white focus:outline-none focus:border-spotify-green transition-colors"
+            />
+            <span>of {totalPages}</span>
+          </div>
+          
+          <button
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages}
+            className={`p-2 rounded-lg ${
+              currentPage === totalPages
+                ? 'bg-spotify-darkgray text-spotify-lightgray/50 cursor-not-allowed'
+                : 'bg-spotify-green text-spotify-black hover:bg-green-400'
+            } transition-colors`}
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      )}
 
       {/* Summary Stats */}
       <motion.div
