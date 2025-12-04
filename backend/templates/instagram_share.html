@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram Wrapped Share - Spotify</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #E1306C 0%, #833AB4 50%, #5851DB 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        
+        h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .subtitle {
+            font-size: 20px;
+            opacity: 0.95;
+        }
+        
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+        
+        .card-preview {
+            width: 100%;
+            height: 375px;
+            background: linear-gradient(135deg, #191414, #1DB954);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .card-icon {
+            font-size: 72px;
+            margin-bottom: 20px;
+        }
+        
+        .card-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .card-description {
+            font-size: 14px;
+            opacity: 0.9;
+            line-height: 1.4;
+        }
+        
+        .card-actions {
+            padding: 20px;
+            background: white;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #E1306C, #833AB4);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(225, 48, 108, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .download-all {
+            text-align: center;
+            margin-top: 40px;
+        }
+        
+        .download-all-btn {
+            background: linear-gradient(135deg, #1DB954, #168e3f);
+            color: white;
+            padding: 18px 48px;
+            font-size: 18px;
+            display: inline-block;
+        }
+        
+        .download-all-btn:hover {
+            transform: scale(1.08);
+            box-shadow: 0 10px 30px rgba(29, 185, 84, 0.4);
+        }
+        
+        .preview-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .preview-modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            max-width: 90%;
+            max-height: 90%;
+            position: relative;
+        }
+        
+        .modal-content img {
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: 16px;
+        }
+        
+        .modal-close {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            color: white;
+            font-size: 32px;
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #fff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .instructions {
+            background: rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 30px;
+            color: white;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+        
+        .instructions h2 {
+            margin-bottom: 20px;
+        }
+        
+        .steps {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .step {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .step-number {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            background: white;
+            color: #833AB4;
+            border-radius: 50%;
+            line-height: 40px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .time-selector {
+            background: rgba(255,255,255,0.2);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .time-selector label {
+            color: white;
+            font-weight: 600;
+            margin-right: 15px;
+        }
+        
+        .time-selector select {
+            padding: 10px 20px;
+            border-radius: 25px;
+            border: none;
+            background: white;
+            color: #333;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📸 Instagram Wrapped Share</h1>
+            <p class="subtitle">Download your Spotify Wrapped as Instagram-ready cards</p>
+        </header>
+        
+        <div class="instructions">
+            <h2>Share Your Music Story</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div>Choose your time period</div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div>Preview or download cards</div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div>Share on Instagram</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="time-selector">
+            <label for="timeRange">Time Period:</label>
+            <select id="timeRange" onchange="updateTimeRange()">
+                <option value="long_term">All Time</option>
+                <option value="medium_term">Last 6 Months</option>
+                <option value="short_term">Last 4 Weeks</option>
+            </select>
+        </div>
+        
+        <div class="cards-grid">
+            <!-- Summary Card -->
+            <div class="card">
+                <div class="card-preview" style="background: linear-gradient(135deg, #191414, #1DB954);">
+                    <div class="card-icon">📊</div>
+                    <div class="card-title">Wrapped Summary</div>
+                    <div class="card-description">
+                        Your complete year in music<br>
+                        Minutes listened, top genre, and stats
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <button class="btn btn-primary" onclick="previewCard('summary')">
+                        👁 Preview
+                    </button>
+                    <a href="#" id="download-summary" class="btn btn-secondary" download>
+                        ⬇️ Download
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Top Tracks Card -->
+            <div class="card">
+                <div class="card-preview" style="background: linear-gradient(135deg, #1DB954, #191414);">
+                    <div class="card-icon">🎵</div>
+                    <div class="card-title">Top 5 Tracks</div>
+                    <div class="card-description">
+                        Your most played songs<br>
+                        The soundtrack to your year
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <button class="btn btn-primary" onclick="previewCard('tracks')">
+                        👁 Preview
+                    </button>
+                    <a href="#" id="download-tracks" class="btn btn-secondary" download>
+                        ⬇️ Download
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Top Artists Card -->
+            <div class="card">
+                <div class="card-preview" style="background: linear-gradient(135deg, #8B47FF, #191414);">
+                    <div class="card-icon">🎤</div>
+                    <div class="card-title">Top 5 Artists</div>
+                    <div class="card-description">
+                        Artists who defined your year<br>
+                        Your musical companions
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <button class="btn btn-primary" onclick="previewCard('artists')">
+                        👁 Preview
+                    </button>
+                    <a href="#" id="download-artists" class="btn btn-secondary" download>
+                        ⬇️ Download
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Personality Card -->
+            <div class="card">
+                <div class="card-preview" style="background: linear-gradient(135deg, #FF6B6B, #764BA2);">
+                    <div class="card-icon">🎭</div>
+                    <div class="card-title">Music Personality</div>
+                    <div class="card-description">
+                        Your unique listening profile<br>
+                        Energy, mood, and vibe analysis
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <button class="btn btn-primary" onclick="previewCard('personality')">
+                        👁 Preview
+                    </button>
+                    <a href="#" id="download-personality" class="btn btn-secondary" download>
+                        ⬇️ Download
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="download-all">
+            <a href="#" id="download-all" class="btn download-all-btn">
+                📦 Download All Cards as ZIP
+            </a>
+        </div>
+    </div>
+    
+    <!-- Preview Modal -->
+    <div id="previewModal" class="preview-modal" onclick="closePreview()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closePreview()">×</button>
+            <img id="previewImage" src="" alt="Preview">
+        </div>
+    </div>
+    
+    <script>
+        let selectedTimeRange = 'long_term';
+        
+        // Check if it's December, default to long_term for full year data
+        const currentMonth = new Date().getMonth() + 1;
+        if (currentMonth >= 11) {
+            selectedTimeRange = 'long_term';
+            document.getElementById('timeRange').value = 'long_term';
+        }
+        
+        function updateTimeRange() {
+            selectedTimeRange = document.getElementById('timeRange').value;
+            updateDownloadLinks();
+        }
+        
+        function updateDownloadLinks() {
+            const types = ['summary', 'tracks', 'artists', 'personality'];
+            types.forEach(type => {
+                const link = document.getElementById(`download-${type}`);
+                link.href = `/api/instagram-wrapped/${type}?time_range=${selectedTimeRange}`;
+            });
+            
+            document.getElementById('download-all').href = 
+                `/api/instagram-wrapped-download?time_range=${selectedTimeRange}`;
+        }
+        
+        function previewCard(type) {
+            const modal = document.getElementById('previewModal');
+            const img = document.getElementById('previewImage');
+            
+            // Show loading
+            img.src = '';
+            modal.classList.add('show');
+            
+            // Create a temporary image element to load the preview
+            const tempImg = new Image();
+            tempImg.onload = function() {
+                img.src = this.src;
+            };
+            tempImg.onerror = function() {
+                alert('Error loading preview. Please make sure you are logged in.');
+                closePreview();
+            };
+            
+            // Set source to trigger load
+            tempImg.src = `/api/instagram-wrapped/${type}?time_range=${selectedTimeRange}&preview=true`;
+        }
+        
+        function closePreview() {
+            document.getElementById('previewModal').classList.remove('show');
+        }
+        
+        // Initialize download links
+        updateDownloadLinks();
+        
+        // Check authentication
+        fetch('/api/user')
+            .then(response => {
+                if (!response.ok) {
+                    alert('Please login first at /login');
+                    window.location.href = '/login';
+                }
+            })
+            .catch(error => {
+                console.error('Auth check failed:', error);
+            });
+    </script>
+</body>
+</html>

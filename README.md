@@ -1,189 +1,134 @@
-# Spotify Wrapped Dashboard 🎵
+# 🎵 Spotify Wrapped Dashboard
 
-A beautiful, interactive web dashboard that connects to your Spotify account to create personalized Wrapped-style visualizations of your listening habits.
+A full-stack application that recreates the Spotify Wrapped experience with enhanced features and real-time data access.
 
-![Spotify Wrapped Dashboard](https://img.shields.io/badge/Spotify-1DB954?style=for-the-badge&logo=spotify&logoColor=white)
-![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
-![Flask](https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white)
+## 📁 Project Structure
 
-## ✨ Features
+```
+spotify-wrapped/
+├── backend/              # Flask API server
+│   ├── app.py           # Main Flask application
+│   ├── json_storage.py  # Data persistence layer
+│   ├── enhancements/    # Enhancement modules
+│   └── templates/       # HTML templates
+├── frontend/            # React application
+│   ├── src/            # React source code
+│   │   ├── components/ # React components
+│   │   └── App.js     # Main app component
+│   └── public/         # Static assets
+├── tests/              # Test suites
+├── docs/               # Documentation
+├── scripts/            # Utility scripts
+├── data/               # User data storage
+└── config/             # Configuration files
+```
 
-### 🔐 Spotify OAuth Integration
-- Secure authentication with Spotify
-- Access to user's top tracks and artists
-- Multiple time range support (4 weeks, 6 months, all time)
-
-### 📊 Data Visualizations
-- **Top Tracks**: Interactive list with preview playback
-- **Top Artists**: Beautiful cards with follower counts and genres
-- **Genre Analysis**: Doughnut and bar charts showing genre distribution
-- **Stats Overview**: Comprehensive listening statistics
-
-### 🎨 Wrapped Summary Card
-- Personalized, shareable Wrapped card
-- Download as image
-- Share directly from the browser
-- Beautiful gradient designs
-
-### 🎯 Key Metrics
-- Most listened-to genre
-- Favorite artist with image
-- Song of the year
-- Total listening time
-- Average track popularity
-- Music taste characteristics
-
-## 🚀 Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
 - Python 3.8+
-- Node.js 14+
+- Node.js 16+
 - Spotify Developer Account
 
-### 1. Set up Spotify App
+### Setup
 
-1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
-2. Click "Create App"
-3. Fill in the app details:
-   - App Name: "Spotify Wrapped Dashboard"
-   - App Description: "Personal Spotify statistics dashboard"
-   - Redirect URI: `http://127.0.0.1:5000/callback`
-4. Save your **Client ID** and **Client Secret**
+1. **Clone the repository**
+   ```bash
+   git clone [repository-url]
+   cd spotify-wrapped
+   ```
 
-### 2. Backend Setup
+2. **Set up environment variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your Spotify API credentials
+   ```
 
+3. **Run the application**
+
+   **Option 1: Run both servers together**
+   ```bash
+   ./run_dev.sh
+   ```
+
+   **Option 2: Run servers separately**
+   
+   Backend:
+   ```bash
+   ./run_backend.sh
+   ```
+   
+   Frontend (in new terminal):
+   ```bash
+   ./run_frontend.sh
+   ```
+
+4. **Access the application**
+   - Frontend: http://localhost:3000
+   - Backend API: http://127.0.0.1:5000
+
+## 🎯 Features
+
+- **OAuth Authentication**: Secure Spotify login
+- **Multiple Time Ranges**: Last 4 weeks, 6 months, all-time data
+- **Wrapped Experience**: Official Spotify Wrapped-style presentation
+- **Data Visualizations**: Interactive charts and statistics
+- **Shareable Cards**: Download and share your music stats
+- **Wrapped Hub**: Access historical Wrapped data
+- **Music Analysis**: Genre distribution, listening personality
+- **Playlist Generator**: Create playlists from your top tracks
+
+## 🛠️ Development
+
+### Backend Development
 ```bash
-# Clone the repository
-cd SpotifyWrapped
-
-# Create virtual environment
-python -m venv .venv
-
-# Activate virtual environment
-# On macOS/Linux:
-source .venv/bin/activate
-# On Windows:
-.venv\Scripts\activate
-
-# Install Python dependencies
-pip install -r requirements.txt
-
-# Create .env file from example
-cp .env.example .env
-
-# Edit .env file and add your Spotify credentials
-# SPOTIFY_CLIENT_ID=your_client_id_here
-# SPOTIFY_CLIENT_SECRET=your_client_secret_here
-```
-
-### 3. Frontend Setup
-
-```bash
-# Install Node dependencies
-npm install
-
-# Build CSS with Tailwind
-npm run build:css
-```
-
-### 4. Run the Application
-
-```bash
-# Terminal 1: Start Flask backend
+cd backend
+source ../.venv/bin/activate
 python app.py
+```
 
-# Terminal 2: Start React frontend
+### Frontend Development
+```bash
+cd frontend
 npm start
 ```
 
-The application will be available at:
-- Frontend: http://localhost:3000
-- Backend API: http://127.0.0.1:5000
+### Running Tests
+```bash
+cd tests
+python test_all_features.py
+```
 
-## 🎨 Tech Stack
+## 📚 Documentation
 
-### Frontend
-- **React** - UI framework
-- **TailwindCSS** - Styling
-- **Framer Motion** - Animations
-- **Chart.js** - Data visualizations
-- **Lucide React** - Icons
-- **Axios** - API calls
+- [Setup Guide](docs/START_HERE.md)
+- [Frontend Access Guide](docs/FRONTEND_ACCESS_GUIDE.md)
+- [Enhancement Features](docs/ENHANCED_FEATURES.md)
+- [API Documentation](docs/README.md)
 
-### Backend
-- **Flask** - Python web framework
-- **Spotipy** - Spotify Web API wrapper
-- **Flask-CORS** - Cross-origin support
-- **Pillow** - Image generation
-- **python-dotenv** - Environment management
+## 🔧 Configuration
 
-## 📱 Features Overview
+### Spotify App Settings
+1. Create app at https://developer.spotify.com
+2. Set redirect URI to `http://127.0.0.1:5000/callback`
+3. Add client ID and secret to `.env`
 
-### Landing Page
-- Beautiful animated design
-- Feature highlights
-- One-click Spotify login
-
-### Dashboard
-- **Overview Tab**: Key statistics and listening summary
-- **Top Tracks Tab**: Your most played songs with audio preview
-- **Top Artists Tab**: Favorite artists with genres and followers
-- **Genres Tab**: Interactive genre distribution charts
-- **Your Wrapped Tab**: Personalized shareable card
-
-### Time Ranges
-- **Last 4 Weeks**: Recent favorites
-- **Last 6 Months**: Medium-term trends
-- **All Time**: Your all-time classics
-
-## 🛡️ Security
-
-- OAuth 2.0 authentication flow
-- No password storage
-- Secure token management
-- Session-based authentication
-- Environment variable protection
+### Environment Variables
+```env
+SPOTIFY_CLIENT_ID=your_client_id
+SPOTIFY_CLIENT_SECRET=your_client_secret
+SPOTIFY_REDIRECT_URI=http://127.0.0.1:5000/callback
+FLASK_SECRET_KEY=your_secret_key
+```
 
 ## 🤝 Contributing
 
-Feel free to fork this project and submit pull requests. Here are some ideas for contributions:
-- Additional visualizations
-- Social sharing features
-- Playlist generation
-- Music recommendations
-- Historical data tracking
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests
+5. Submit a pull request
 
 ## 📄 License
 
-This project is for educational purposes and is not affiliated with Spotify AB.
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**"No token provided" error**
-- Make sure you're logged in
-- Check that cookies are enabled
-- Try logging out and back in
-
-**Charts not showing**
-- Ensure you have enough listening history
-- Try different time ranges
-- Check browser console for errors
-
-**Can't login**
-- Verify Spotify app credentials in .env
-- Check redirect URI matches exactly
-- Ensure backend is running on port 5000
-
-## 📞 Support
-
-If you encounter any issues:
-1. Check the browser console for errors
-2. Verify all environment variables are set
-3. Ensure both frontend and backend are running
-4. Check that your Spotify app settings are correct
-
----
-
-Built with 💚 using the Spotify Web API
+This project is for educational purposes. Spotify and Spotify Wrapped are trademarks of Spotify AB.

@@ -52,7 +52,7 @@ htmlcov/
 build/
 dist/
 *.log
-spotify_data/
+data/
 
 # IDE
 .idea/

@@ -1,6 +1,7 @@
 #!/bin/bash
 
 echo "🎵 Setting up Spotify Wrapped Dashboard..."
+echo "========================================="
 echo ""
 
 # Check if Python is installed
@@ -15,7 +16,9 @@ if ! command -v node &> /dev/null; then
     exit 1
 fi
 
-echo "✅ Python and Node.js detected"
+echo "✅ Prerequisites detected:"
+echo "   Python: $(python3 --version)"
+echo "   Node:   $(node --version)"
 echo ""
 
 # Create virtual environment
@@ -28,11 +31,14 @@ source .venv/bin/activate
 
 # Install Python dependencies
 echo "📚 Installing Python dependencies..."
-pip install -r requirements.txt
+pip install -q --upgrade pip
+pip install -q -r backend/requirements.txt
+echo "   ✅ Python dependencies installed"
 
 # Install Node dependencies
 echo "📦 Installing Node dependencies..."
-npm install
+cd frontend && npm install --silent && cd ..
+echo "   ✅ Node dependencies installed"
 
 # Check if .env exists
 if [ ! -f .env ]; then
@@ -46,14 +52,24 @@ if [ ! -f .env ]; then
     echo "   3. Add http://127.0.0.1:5000/callback as redirect URI"
     echo "   4. Copy your Client ID and Client Secret to .env"
     echo ""
+else
+    echo "✅ Environment file exists"
+fi
+
+# Create data directory if it doesn't exist
+if [ ! -d "data" ]; then
+    mkdir -p data
+    echo "📁 Created data directory"
 fi
 
 echo ""
 echo "✨ Setup complete!"
 echo ""
-echo "To run the application:"
-echo "  1. Terminal 1: python app.py"
-echo "  2. Terminal 2: npm start"
+echo "🚀 To run the application:"
+echo "   Option 1: ./run_dev.sh    (runs both servers together)"
+echo "   Option 2: Run separately:"
+echo "     Terminal 1: ./run_backend.sh"
+echo "     Terminal 2: ./run_frontend.sh"
 echo ""
-echo "The app will be available at http://localhost:3000"
-echo ""
+echo "📱 The app will be available at http://localhost:3000"
+echo "
